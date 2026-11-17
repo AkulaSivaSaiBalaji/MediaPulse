@@ -34,6 +34,32 @@ DB_NAME: str = os.getenv("DB_NAME", "mediapulse_db")
 # Logging & Pipeline Configuration
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
+# Dataset File Configurations (Supports INvideos.csv and IN_youtube_trending_data.csv)
+RAW_CSV_FILENAME: str = os.getenv("RAW_CSV_FILENAME", "INvideos.csv")
+RAW_JSON_FILENAME: str = os.getenv("RAW_JSON_FILENAME", "IN_category_id.json")
+
+RAW_CSV_PATH: Path = DATA_RAW_DIR / RAW_CSV_FILENAME
+RAW_JSON_PATH: Path = DATA_RAW_DIR / RAW_JSON_FILENAME
+
+
+def get_raw_csv_path() -> Path:
+    """Resolve active raw CSV dataset path with fallback support."""
+    for candidate in [RAW_CSV_FILENAME, "INvideos.csv", "IN_youtube_trending_data.csv"]:
+        candidate_path = DATA_RAW_DIR / candidate
+        if candidate_path.exists():
+            return candidate_path
+    return DATA_RAW_DIR / RAW_CSV_FILENAME
+
+
+def get_raw_json_path() -> Path:
+    """Resolve active raw category JSON dataset path with fallback support."""
+    for candidate in [RAW_JSON_FILENAME, "IN_category_id.json"]:
+        candidate_path = DATA_RAW_DIR / candidate
+        if candidate_path.exists():
+            return candidate_path
+    return DATA_RAW_DIR / RAW_JSON_FILENAME
+
+
 
 def get_db_connection_url(mask_password: bool = False) -> str:
     """Generate SQLAlchemy connection URL for MySQL.
