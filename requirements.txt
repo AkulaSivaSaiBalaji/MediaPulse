@@ -1,0 +1,27 @@
+# ==============================================================================
+# MediaPulse — Core Dependencies
+# Production-ready Python stack for Data Analytics & Media BI
+# ==============================================================================
+
+# Data Processing & Numerical Computing
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Data Visualization
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Database Integration (MySQL 8 & SQLAlchemy ORM / Core)
+SQLAlchemy>=2.0.0
+PyMySQL>=1.1.0
+mysql-connector-python>=8.3.0
+
+# Environment Management & Configuration
+python-dotenv>=1.0.0
+
+# Testing & Quality Assurance
+pytest>=8.0.0
+
+# Interactive Analysis & Notebooks
+jupyter>=1.0.0
+ipykernel>=6.29.0
