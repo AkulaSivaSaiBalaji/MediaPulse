@@ -33,7 +33,8 @@ def load_category_mapping(json_path: Optional[Path] = None) -> Dict[int, str]:
         cat_title = item["snippet"]["title"]
         category_map[cat_id] = cat_title
 
-    # Known standard category 29 fallback if not present in region JSON
+    # Authoritative source: YouTube Data API v3 videoCategories resource defines
+    # category ID 29 as "Nonprofits & Activism". Included here as verified fallback.
     if 29 not in category_map:
         category_map[29] = "Nonprofits & Activism"
 
@@ -101,13 +102,19 @@ def audit_missing_values(df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
 
 
 def audit_duplicates(df: pd.DataFrame) -> Dict[str, int]:
-    """Calculate exact duplicate rows and duplicate snapshots on (video_id, trending_date).
+    """Calculate exact duplicate rows and composite same-day duplicates.
+
+    Note on Relationship:
+        Exact duplicates (all columns identical) are a strict subset of composite
+        same-day duplicates on (video_id, trending_date). The difference represents
+        intra-day metric updates where a video was captured multiple times on the
+        same date with updated views/likes.
 
     Args:
         df: Input DataFrame.
 
     Returns:
-        Dictionary with exact duplicates and composite key duplicates.
+        Dictionary with exact duplicates, composite duplicates, and incremental intra-day metric updates.
     """
     exact_dups = int(df.duplicated().sum())
     composite_dups = 0
@@ -117,7 +124,9 @@ def audit_duplicates(df: pd.DataFrame) -> Dict[str, int]:
     return {
         "exact_duplicate_rows": exact_dups,
         "composite_key_duplicates": composite_dups,
+        "intraday_metric_updates": max(0, composite_dups - exact_dups),
     }
+
 
 
 def audit_identifiers(df: pd.DataFrame) -> Dict[str, Any]:

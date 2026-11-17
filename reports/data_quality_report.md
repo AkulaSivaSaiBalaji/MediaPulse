@@ -20,14 +20,16 @@ The raw dataset contains **37,352 observations** across **16 columns**, spanning
 | :--- | :--- | :--- |
 | **Total Rows Analyzed** | `37,352` | Verified |
 | **Total Columns** | `16` | Verified |
+| **Total Data Cells** | `597,632` (`37,352` $\times$ `16`) | Verified |
 | **Raw CSV File Size** | `56.84 MB` (`59,600,439` bytes) | Verified |
 | **Unique Video IDs** | `16,307` | High content variety |
 | **Unique Channels** | `1,426` | Healthy creator distribution |
-| **Missing Values** | `561` in `description` only (1.50%) | High completeness (98.5%+) |
-| **Exact Duplicate Rows** | `4,263` (11.41%) | Remediation required in Phase 3 |
-| **Composite Key Duplicates `(video_id, trending_date)`** | `4,894` (13.10%) | Remediation required in Phase 3 |
-| **Malformed `#NAME?` Identifiers** | `511` records (1.37%) | Excel formula corruption detected |
-| **Unmapped Category ID** | Category `29` (105 records) | Missing in regional taxonomy |
+| **Overall Cell Completeness** | `99.91%` (`561` null cells out of `597,632`) | Exceptional data completeness |
+| **Missing Values (Column Specific)** | `561` in `description` only (`1.50%` of rows) | 15 of 16 columns have 0 missing values |
+| **Exact Duplicate Rows** | `4,263` (`11.41%` of total rows) | Base subset of all same-day duplicates |
+| **Composite Same-Day Duplicates `(video_id, trending_date)`** | `4,894` (`13.10%` of total rows) | Encompasses the 4,263 exact dups + 631 metric updates |
+| **Malformed `#NAME?` Identifiers** | `511` records (`1.37%`) | Irreversible Excel formula corruption |
+| **Unmapped Category ID** | Category `29` (`105` records) | Mapped via YouTube Data API v3 taxonomy |
 | **Engagement Metric Anomalies** | `0` negative views/likes/comments | Clean physical boundaries |
 
 ---
@@ -60,31 +62,33 @@ The raw dataset contains **37,352 observations** across **16 columns**, spanning
 ## 3. Data Quality Audit Dimensions
 
 ### 3.1 Completeness Audit
-- 15 out of 16 columns have **100.0% completeness** (0 null values).
-- The `description` column has **561 missing values** (1.50%).
-- **Business Impact:** Empty descriptions are standard creator behavior (e.g., short teasers, automated uploads). They do not invalidate engagement tracking.
+- **Cell-Level Completeness:** Across the matrix of 37,352 rows $\times$ 16 columns (597,632 total cells), there are only 561 missing cells, yielding an overall cell-level completeness rate of **99.91%** (missing rate: 0.094%).
+- **Column-Level Completeness:** 15 out of 16 columns have **100.0% completeness** (0 null values).
+- **Description Column:** The 1.50% missing rate (`561` missing out of `37,352` rows) applies **specifically and exclusively** to the `description` column.
+- **Business Impact:** Empty descriptions are standard creator behavior (e.g., short teasers, music snippets, automated uploads). They do not invalidate engagement tracking.
 - **Cleaning Strategy:** Impute missing descriptions with an empty string `""` and create a binary feature `has_description = True/False`.
 
-### 3.2 Uniqueness & Duplication Audit
-A fundamental concept in media analytics is distinguishing between **technical scraping duplicates** and **legitimate longitudinal observations**:
+### 3.2 Uniqueness & Duplication Relationship (Non-Independent Groups)
+A fundamental concept in media analytics is distinguishing between technical scraping duplicates and legitimate longitudinal observations. Crucially, **exact duplicates and same-day duplicates are not independent groups; rather, exact duplicates are a strict nested subset of composite same-day duplicates**:
 
-1. **Exact Duplicate Rows (`4,263` rows, 11.41%):**
-   * These occur when an identical daily snapshot was scraped or appended twice.
-   * *Remediation:* Must be eliminated using `df.drop_duplicates()` to avoid inflating view counts, likes, or trending frequency.
-2. **Composite Key Duplicates `(video_id, trending_date)` (`4,894` rows, 13.10%):**
-   * Multiple records exist for the same video on the exact same trending date, but with slight metric differences (e.g., morning scrape vs. evening scrape).
-   * *Remediation:* Keep the latest observation per video per day (`keep='last'` ordered by views).
+1. **Exact Duplicate Rows (`4,263` rows, 11.41% of total):**
+   * These occur when an identical daily snapshot was scraped or appended twice (all 16 fields, including view count, are byte-for-byte identical).
+2. **Composite Key Same-Day Duplicates `(video_id, trending_date)` (`4,894` rows, 13.10% of total):**
+   * This set **encompasses all 4,263 exact duplicates plus an incremental 631 non-exact duplicates**.
+   * The 631 non-exact duplicate rows represent intra-day metric refreshes: the same video observed multiple times on the same calendar day with updated view, like, or comment counts (e.g., morning scrape vs. evening scrape).
+   * *Remediation Strategy:* Rather than performing separate uncoordinated deduplications, deduplicating on `(video_id, trending_date)` while sorting by `views DESC` cleanly resolves both exact duplicates and intra-day metric shifts, keeping the single most accurate (latest/highest) snapshot for each video on each trending day.
 3. **Multi-Day Trending Persistence (Legitimate Business Phenomenon):**
    * Videos remain trending across consecutive calendar days.
-   * The average video trends for **2.29 days**.
+   * Across the dataset, videos trend for an average of **2.29 days**.
    * Top non-corrupted trending video: `rRr1qiJRsXk` trended for **16 days**.
    * *Crucial Analytical Rule:* When calculating total platform views, we **must not sum repeated cumulative view counts** across days for the same video; we must take the maximum or final snapshot per video.
 
-### 3.3 Validity & Identifier Integrity (`#NAME?` Issue)
+### 3.3 Validity & Identifier Integrity (`#NAME?` Issue and Irrecoverability)
 - **Problem Observed:** Exactly **511 rows** contain `video_id == '#NAME?'`.
 - **Root Cause Analysis:** When video IDs begin with a hyphen (`-`) or equals sign (`=`), Microsoft Excel automatically interprets the cell as an Excel formula rather than a text string. When the CSV was edited or exported in Excel, Excel replaced the raw string with `#NAME?`.
-- **Downstream Consequence:** In MySQL and Power BI, multiple distinct videos sharing the `#NAME?` primary key will cause foreign key violations, artificial fan-outs, and duplicate key errors.
-- **Cleaning Strategy:** Generate deterministic surrogate synthetic video IDs based on MD5 hashing of `(channel_title, title, publish_time)` so distinct videos are properly separated.
+- **Irrecoverability Limitation:** It is vital to document that **the original 11-character YouTube video IDs for these 511 records cannot be reliably recovered without querying an authoritative external data source** (such as the live YouTube Data API v3 searching on exact video title, channel title, and publish timestamp). The original character string was irreversibly overwritten at the time of Excel file export.
+- **Engineering Mitigation for Downstream Analytics:** In MySQL and Power BI, multiple distinct videos sharing the `#NAME?` primary key will cause foreign key violations, artificial fan-outs, and duplicate key errors.
+- **Cleaning Strategy:** While the original YouTube ID is lost, we can preserve analytical integrity by generating deterministic surrogate synthetic video IDs (e.g., `SURR_{MD5_hash}`) based on `(channel_title, title, publish_time)`. This ensures each distinct video is treated as an independent entity in relational joins and Power BI data models, while documenting the limitation.
 
 ### 3.4 Temporal Boundaries & Date Format Audit
 - **Trending Date:** Stored in two-digit year, day, month format: `%y.%d.%m` (e.g., `'17.14.11'` represents November 14, 2017).
@@ -111,12 +115,13 @@ A fundamental concept in media analytics is distinguishing between **technical s
 ### 3.6 Taxonomy & Category Mapping Audit
 - The raw dataset has **17 unique category IDs**.
 - The `IN_category_id.json` file contains **31 category definitions**.
-- **The Category 29 Anomaly:**
+- **The Category 29 Anomaly & Verifiable Source:**
   * Category ID `29` appears in **105 observations**.
-  * It is missing from `IN_category_id.json`.
-  * In the global YouTube category taxonomy, ID `29` represents **"Nonprofits & Activism"**.
-  * Inspection of titles (e.g., religious broadcasts, social outreach) confirms this mapping.
-  * *Remediation:* Explicitly add `{29: 'Nonprofits & Activism'}` to the category mapping dictionary.
+  * It is omitted from `IN_category_id.json`.
+  * **Authoritative Verifiable Source:** In the official **YouTube Data API v3** specification (`videoCategories` resource) and the global standard YouTube category definitions (as published in `US_category_id.json` / `GB_category_id.json` across official YouTube API reference datasets), **Category ID `29` is formally designated as `"Nonprofits & Activism"`**.
+  * Context for Regional Absence: In the YouTube India region during late 2017/2018, category 29 was flagged as `assignable: false` in the regional snippet export (preventing creators in India from selecting it during upload), but content tagged under this category from global syndication, pre-existing channels, or cross-regional uploads still entered the India trending feed.
+  * Manual Title Verification: Inspection of the 105 actual video titles in this dataset (e.g., religious congregations, charitable trust events, social activism sermons) confirms alignment with the Nonprofit & Activism classification.
+  * *Remediation:* Explicitly add `{29: 'Nonprofits & Activism'}` to the category mapping dictionary based on the official YouTube API taxonomy.
 
 #### Category Distribution in Raw Observations
 

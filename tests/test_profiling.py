@@ -64,6 +64,11 @@ def test_duplicates_audit():
     dup_stats = profiling.audit_duplicates(df)
     assert dup_stats["exact_duplicate_rows"] > 0
     assert dup_stats["composite_key_duplicates"] >= dup_stats["exact_duplicate_rows"]
+    assert "intraday_metric_updates" in dup_stats
+    assert (
+        dup_stats["intraday_metric_updates"]
+        == dup_stats["composite_key_duplicates"] - dup_stats["exact_duplicate_rows"]
+    )
 
 
 def test_identifiers_audit():
