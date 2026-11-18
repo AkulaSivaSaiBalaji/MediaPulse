@@ -6,7 +6,7 @@ and publication-quality Matplotlib/Seaborn visualization generators.
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Configure local writable Matplotlib cache directory inside workspace
 os.environ.setdefault("MPLCONFIGDIR", str(Path(__file__).resolve().parent.parent / ".matplotlib_cache"))
@@ -192,23 +192,30 @@ def compute_engagement_correlations(df: pd.DataFrame) -> Dict[str, float]:
 
 
 def compute_time_to_trend_summary(df: pd.DataFrame) -> pd.DataFrame:
-    """Analyze the distribution of time to observed trending across categories.
+    """Analyze distribution of time to observed trending across categories at unique-video grain.
+
+    Evaluates the duration from publication to the earliest observed trending appearance
+    for each unique video.
 
     Args:
         df: Input cleaned DataFrame.
 
     Returns:
-        Summary statistics of days_to_trend grouped by category.
+        Summary statistics of days_to_trend grouped by category at the unique video grain.
     """
     if df.empty or "days_to_trend" not in df.columns or "category_title" not in df.columns:
         return pd.DataFrame()
 
+    # Isolate earliest observed trending record per unique video
+    df_sorted = df.sort_values(by=["video_id", "trending_date"])
+    earliest_records = df_sorted.groupby("video_id").first().reset_index()
+
     summary = (
-        df.groupby("category_title")["days_to_trend"]
+        earliest_records.groupby("category_title")["days_to_trend"]
         .agg(
             median_days_to_trend="median",
             mean_days_to_trend="mean",
-            p25_days="quantile",
+            p25_days=lambda x: x.quantile(0.25),
             p75_days=lambda x: x.quantile(0.75),
             min_days="min",
             max_days="max",
@@ -219,6 +226,46 @@ def compute_time_to_trend_summary(df: pd.DataFrame) -> pd.DataFrame:
     summary["mean_days_to_trend"] = summary["mean_days_to_trend"].round(2)
     summary["p75_days"] = summary["p75_days"].round(2)
     return summary.sort_values(by="median_days_to_trend")
+
+
+def compute_video_time_to_trend_stats(df: pd.DataFrame) -> Dict[str, Union[int, float]]:
+    """Compute overall time-to-observed-trending statistics at the unique-video grain.
+
+    Calculates key metrics (mean, median, percentiles, day-0 rate, <=2 days, <=7 days)
+    using each unique video's earliest observed trending date.
+
+    Args:
+        df: Input cleaned DataFrame.
+
+    Returns:
+        Dictionary of summary statistics with unique-video denominator.
+    """
+    if df.empty or "days_to_trend" not in df.columns:
+        return {}
+
+    df_sorted = df.sort_values(by=["video_id", "trending_date"])
+    earliest_records = df_sorted.groupby("video_id").first().reset_index()
+    dtt = earliest_records["days_to_trend"]
+    total = len(dtt)
+
+    if total == 0:
+        return {}
+
+    return {
+        "total_unique_videos": total,
+        "mean_days": float(round(dtt.mean(), 2)),
+        "median_days": float(dtt.median()),
+        "p25_days": float(dtt.quantile(0.25)),
+        "p75_days": float(dtt.quantile(0.75)),
+        "min_days": int(dtt.min()),
+        "max_days": int(dtt.max()),
+        "day_0_count": int((dtt == 0).sum()),
+        "day_0_pct": float(round(((dtt == 0).sum() / total) * 100, 2)),
+        "within_2_days_count": int((dtt <= 2).sum()),
+        "within_2_days_pct": float(round(((dtt <= 2).sum() / total) * 100, 2)),
+        "within_7_days_count": int((dtt <= 7).sum()),
+        "within_7_days_pct": float(round(((dtt <= 7).sum() / total) * 100, 2)),
+    }
 
 
 def compute_trending_persistence_summary(df: pd.DataFrame) -> pd.DataFrame:
@@ -475,7 +522,7 @@ def plot_views_vs_engagement(
     axes[0].set_xscale("log")
     axes[0].set_yscale("log")
     axes[0].set_title(
-        "Views vs. Likes (Log-Log Scale)\nSpearman r = 0.866 (Strong Monotonic Relationship)",
+        "Views vs. Likes (Log-Log Scale)\nSpearman ρ = +0.743 | Pearson r = +0.855",
         fontsize=11,
         fontweight="bold",
     )
@@ -496,7 +543,7 @@ def plot_views_vs_engagement(
     axes[1].set_xscale("log")
     axes[1].set_yscale("log")
     axes[1].set_title(
-        "Views vs. Comments (Log-Log Scale)\nSpearman r = 0.742 (Moderate-to-Strong Relationship)",
+        "Views vs. Comments (Log-Log Scale)\nSpearman ρ = +0.666 | Pearson r = +0.699",
         fontsize=11,
         fontweight="bold",
     )
@@ -552,9 +599,17 @@ def plot_engagement_distribution(
     axes[0].set_ylabel("Density", fontsize=10)
     axes[0].legend(frameon=True, facecolor="white", loc="upper right")
 
-    # Panel 2: Boxplot
-    sns.boxplot(x=filtered_er, ax=axes[1], color="#ab47bc", fliersize=2)
-    axes[1].set_xlabel("Engagement Rate (%) = ((Likes + Comments) / Views) * 100", fontsize=10)
+    # Panel 2: Boxplot using native Matplotlib OO-API (avoids deprecation warnings)
+    axes[1].boxplot(
+        filtered_er,
+        orientation="horizontal",
+        patch_artist=True,
+        boxprops=dict(facecolor="#ab47bc", color="#4a148c"),
+        medianprops=dict(color="#d32f2f", linewidth=1.8),
+        flierprops=dict(marker="o", markersize=2, alpha=0.3, markerfacecolor="#ab47bc"),
+    )
+    axes[1].set_yticks([])
+    axes[1].set_xlabel("Engagement Rate (%) = ((Likes + Comments) / Views) * 100 (Empirical Sample)", fontsize=10)
 
     plt.tight_layout()
     fig.savefig(save_p, bbox_inches="tight")
@@ -565,44 +620,56 @@ def plot_engagement_distribution(
 def plot_time_to_trend(
     df: pd.DataFrame, output_path: Optional[Path] = None
 ) -> Path:
-    """Generate boxplot comparing time to observed trending across top categories."""
+    """Generate boxplot comparing time to observed trending across top categories at unique-video grain."""
     set_plot_style()
     save_p = output_path or (FIGURES_DIR / "06_time_to_trend_by_category.png")
     save_p.parent.mkdir(parents=True, exist_ok=True)
 
-    top_cat_names = df["category_title"].value_counts().head(8).index.tolist()
-    sub_df = df[df["category_title"].isin(top_cat_names)].copy()
+    # Isolate earliest observed trending record per unique video
+    df_sorted = df.sort_values(by=["video_id", "trending_date"])
+    earliest_records = df_sorted.groupby("video_id").first().reset_index()
+
+    top_cat_names = earliest_records["category_title"].value_counts().head(8).index.tolist()
+    # Reverse order so top category appears at the top of the horizontal plot
+    categories_plot = top_cat_names[::-1]
+
+    data_by_cat = [
+        earliest_records[earliest_records["category_title"] == cat]["days_to_trend"].values
+        for cat in categories_plot
+    ]
 
     fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
 
-    sns.boxplot(
-        data=sub_df,
-        y="category_title",
-        x="days_to_trend",
-        hue="category_title",
-        legend=False,
-        ax=ax,
-        palette="Blues_r",
+    # Use native Matplotlib OO boxplot with orientation='horizontal' (zero deprecation warnings)
+    ax.boxplot(
+        data_by_cat,
+        orientation="horizontal",
+        tick_labels=categories_plot,
+        patch_artist=True,
         showmeans=True,
         meanprops={"marker": "o", "markerfacecolor": "red", "markeredgecolor": "red", "markersize": 5},
-        fliersize=2,
+        medianprops={"color": "#084594", "linewidth": 1.8},
+        boxprops={"facecolor": "#c6dbef", "edgecolor": "#2171b5"},
+        whiskerprops={"color": "#2171b5"},
+        capprops={"color": "#2171b5"},
+        flierprops={"marker": "o", "markersize": 2, "alpha": 0.4, "markerfacecolor": "#6baed6"},
     )
 
-    ax.set_xlim(-0.5, 15)  # Focus on first 15 days where 95% of trending occurs
+    ax.set_xlim(-0.5, 10)  # Focus on first 10 days where 99.88% of earliest trending occurs
     ax.set_title(
-        "Time to Observed Trending by Content Category (First 15 Days Focus)",
+        "Time to First Observed Trending by Content Category (Unique Video Grain)",
         fontsize=12,
         fontweight="bold",
         pad=15,
     )
-    ax.set_xlabel("Time to Observed Trending in Days: (Trending Date - Publish Date)", fontsize=10)
+    ax.set_xlabel("Time to Observed Trending in Days: (Earliest Trending Date - Publish Date)", fontsize=10)
     ax.set_ylabel("Content Category", fontsize=10)
 
     # Note
     ax.text(
         0.98,
         0.05,
-        "Red dot = Mean | Vertical bar = Median | Values clipped at 15 days for visual clarity",
+        "Red dot = Mean | Dark blue line = Median | Box = 25th-75th %ile | Axis focused on first 10 days",
         transform=ax.transAxes,
         ha="right",
         fontsize=9,
@@ -637,12 +704,12 @@ def plot_trending_persistence(
     )
 
     ax.set_title(
-        "Trending Persistence: Days Observed on Trending Feed per Unique Video",
+        "Trending Persistence: Distinct Observed Trending Days per Unique Video",
         fontsize=12,
         fontweight="bold",
         pad=15,
     )
-    ax.set_xlabel("Distinct Days Video Appeared on Trending Feed", fontsize=10)
+    ax.set_xlabel("Distinct Snapshot Dates Video Appeared on Trending Feed", fontsize=10)
     ax.set_ylabel("Unique Video Count", fontsize=10)
     ax.yaxis.set_major_formatter(ticker.StrMethodFormatter("{x:,.0f}"))
 

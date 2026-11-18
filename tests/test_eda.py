@@ -61,11 +61,22 @@ def test_engagement_correlations(cleaned_dataset):
 
 
 def test_time_to_trend_summary(cleaned_dataset):
-    """Verify time to observed trending summary statistics across categories."""
+    """Verify time to observed trending summary statistics across categories at unique-video grain."""
     summary = eda.compute_time_to_trend_summary(cleaned_dataset)
     assert not summary.empty
     assert (summary["median_days_to_trend"] >= 0).all()
     assert (summary["min_days"] >= 0).all()
+
+
+def test_video_time_to_trend_stats(cleaned_dataset):
+    """Verify video-level time to observed trending statistics and denominators."""
+    stats = eda.compute_video_time_to_trend_stats(cleaned_dataset)
+    assert stats["total_unique_videos"] == cleaned_dataset["video_id"].nunique()
+    assert stats["median_days"] == 1.0
+    assert stats["day_0_count"] == 420
+    assert stats["day_0_pct"] == pytest.approx(2.58, abs=0.05)
+    assert stats["within_2_days_pct"] == pytest.approx(96.41, abs=0.05)
+    assert stats["within_7_days_pct"] == pytest.approx(99.88, abs=0.05)
 
 
 def test_trending_persistence_summary(cleaned_dataset):
@@ -95,6 +106,7 @@ def test_empty_dataframe_eda():
     assert eda.compute_channel_performance_summary(empty_df).empty
     assert eda.compute_engagement_correlations(empty_df) == {}
     assert eda.compute_time_to_trend_summary(empty_df).empty
+    assert eda.compute_video_time_to_trend_stats(empty_df) == {}
     assert eda.compute_trending_persistence_summary(empty_df).empty
     w, h = eda.compute_publication_patterns(empty_df)
     assert w.empty and h.empty
