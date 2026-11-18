@@ -6,5 +6,6 @@
       "reportVersionAtImport": "5.50",
       "type": "SharedResources"
     }
-  }
+  },
+  "layoutOptimization": "None"
 }

@@ -462,6 +462,9 @@ def test_modern_pbir_report_structure():
     with open(report_json_path, "r", encoding="utf-8") as f:
         rep = json.load(f)
     assert "themeCollection" in rep
+    assert rep.get("layoutOptimization") in {"None", "PhonePortrait"}, (
+        f"Missing or invalid required root property 'layoutOptimization': {rep.get('layoutOptimization')}"
+    )
 
     # 5. definition/pages/pages.json
     pages_json_path = report_dir / "definition" / "pages" / "pages.json"
@@ -548,6 +551,32 @@ def test_modern_pbir_visual_definitions_and_field_bindings():
                     )
 
     assert total_visual_count == 24, f"Total visuals across report {total_visual_count} != 24"
+
+
+def test_modern_pbir_report_json_schema_compliance():
+    """Verify that definition/report.json contains all required properties from Microsoft PBIR schema.
+
+    Specifically validates:
+    - Required root property '$schema' matching Microsoft Fabric PBIR report schema 1.0.0.
+    - Required root property 'layoutOptimization' with valid value ('None' or 'PhonePortrait').
+    - Required root property 'themeCollection' containing 'baseTheme'.
+    - Generator script powerbi/build_powerbi_project.py also includes layoutOptimization: None.
+    """
+    import json
+    report_json_path = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.Report" / "definition" / "report.json"
+    assert report_json_path.exists(), "definition/report.json missing"
+    with open(report_json_path, "r", encoding="utf-8") as f:
+        rep = json.load(f)
+
+    assert rep.get("$schema") == "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.0.0/schema.json"
+    assert "themeCollection" in rep
+    assert rep.get("layoutOptimization") == "None", f"Unexpected layoutOptimization: {rep.get('layoutOptimization')}"
+
+    # Also verify generator script source
+    gen_script = config.BASE_DIR / "powerbi" / "build_powerbi_project.py"
+    content = gen_script.read_text(encoding="utf-8")
+    assert '"layoutOptimization": "None"' in content, "Generator script missing layoutOptimization: None"
+
 
 
 

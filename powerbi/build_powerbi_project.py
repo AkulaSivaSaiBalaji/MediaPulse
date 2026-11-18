@@ -642,7 +642,8 @@ report_settings_payload = {
             "reportVersionAtImport": "5.50",
             "type": "SharedResources"
         }
-    }
+    },
+    "layoutOptimization": "None"
 }
 (DEFINITION_DIR / "report.json").write_text(json.dumps(report_settings_payload, indent=2), encoding="utf-8")
 
