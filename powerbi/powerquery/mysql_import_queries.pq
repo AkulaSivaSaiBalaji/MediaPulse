@@ -30,8 +30,7 @@ in
 // ------------------------------------------------------------------------------
 let
     Source = MySQL.Database(ServerName, DatabaseName, [ReturnSingleDatabase=true]),
-    Schema = Source{[Schema=DatabaseName]}[Data],
-    ViewData = Schema{[Name="vw_dim_category"]}[Data],
+    ViewData = Source{[Schema=DatabaseName, Item="vw_dim_category", Kind="View"]}[Data],
     TypedTable = Table.TransformColumnTypes(ViewData,{
         {"category_id", Int64.Type},
         {"category_title", type text},
@@ -49,8 +48,7 @@ in
 // ------------------------------------------------------------------------------
 let
     Source = MySQL.Database(ServerName, DatabaseName, [ReturnSingleDatabase=true]),
-    Schema = Source{[Schema=DatabaseName]}[Data],
-    ViewData = Schema{[Name="vw_dim_channel"]}[Data],
+    ViewData = Source{[Schema=DatabaseName, Item="vw_dim_channel", Kind="View"]}[Data],
     TypedTable = Table.TransformColumnTypes(ViewData,{
         {"channel_id", Int64.Type},
         {"channel_title", type text},
@@ -69,8 +67,7 @@ in
 // ------------------------------------------------------------------------------
 let
     Source = MySQL.Database(ServerName, DatabaseName, [ReturnSingleDatabase=true]),
-    Schema = Source{[Schema=DatabaseName]}[Data],
-    ViewData = Schema{[Name="vw_dim_video"]}[Data],
+    ViewData = Source{[Schema=DatabaseName, Item="vw_dim_video", Kind="View"]}[Data],
     TypedTable = Table.TransformColumnTypes(ViewData,{
         {"video_id", type text},
         {"channel_id", Int64.Type},
@@ -108,8 +105,7 @@ in
 // ------------------------------------------------------------------------------
 let
     Source = MySQL.Database(ServerName, DatabaseName, [ReturnSingleDatabase=true]),
-    Schema = Source{[Schema=DatabaseName]}[Data],
-    ViewData = Schema{[Name="vw_fact_trending_snapshots"]}[Data],
+    ViewData = Source{[Schema=DatabaseName, Item="vw_fact_trending_snapshots", Kind="View"]}[Data],
     TypedTable = Table.TransformColumnTypes(ViewData,{
         {"snapshot_id", Int64.Type},
         {"video_id", type text},
@@ -139,8 +135,7 @@ in
 // ------------------------------------------------------------------------------
 let
     Source = MySQL.Database(ServerName, DatabaseName, [ReturnSingleDatabase=true]),
-    Schema = Source{[Schema=DatabaseName]}[Data],
-    ViewData = Schema{[Name="vw_dim_date"]}[Data],
+    ViewData = Source{[Schema=DatabaseName, Item="vw_dim_date", Kind="View"]}[Data],
     TypedTable = Table.TransformColumnTypes(ViewData,{
         {"full_date", type date},
         {"calendar_year", Int64.Type},

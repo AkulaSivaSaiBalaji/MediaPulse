@@ -335,7 +335,7 @@ tables = [
                     "expression": [
                         "let",
                         "    Source = MySQL.Database(\"127.0.0.1:3306\", \"mediapulse_db\", [ReturnSingleDatabase=true]),",
-                        "    Data = Source{[Schema=\"mediapulse_db\"]}[Data]{[Name=\"vw_dim_category\"]}[Data],",
+                        "    Data = Source{[Schema=\"mediapulse_db\", Item=\"vw_dim_category\", Kind=\"View\"]}[Data],",
                         "    Typed = Table.TransformColumnTypes(Data, {{\"category_id\", Int64.Type}, {\"category_title\", type text}, {\"ingested_at\", type datetime}})",
                         "in",
                         "    Typed"
@@ -361,7 +361,7 @@ tables = [
                     "expression": [
                         "let",
                         "    Source = MySQL.Database(\"127.0.0.1:3306\", \"mediapulse_db\", [ReturnSingleDatabase=true]),",
-                        "    Data = Source{[Schema=\"mediapulse_db\"]}[Data]{[Name=\"vw_dim_channel\"]}[Data],",
+                        "    Data = Source{[Schema=\"mediapulse_db\", Item=\"vw_dim_channel\", Kind=\"View\"]}[Data],",
                         "    Typed = Table.TransformColumnTypes(Data, {{\"channel_id\", Int64.Type}, {\"channel_title\", type text}, {\"ingested_at\", type datetime}})",
                         "in",
                         "    Typed"
@@ -408,7 +408,7 @@ tables = [
                     "expression": [
                         "let",
                         "    Source = MySQL.Database(\"127.0.0.1:3306\", \"mediapulse_db\", [ReturnSingleDatabase=true]),",
-                        "    Data = Source{[Schema=\"mediapulse_db\"]}[Data]{[Name=\"vw_dim_video\"]}[Data],",
+                        "    Data = Source{[Schema=\"mediapulse_db\", Item=\"vw_dim_video\", Kind=\"View\"]}[Data],",
                         "    Typed = Table.TransformColumnTypes(Data, {",
                         "        {\"video_id\", type text}, {\"channel_id\", Int64.Type}, {\"category_id\", Int64.Type},",
                         "        {\"video_title\", type text}, {\"publish_time\", type datetime}, {\"publish_date\", type date},",
@@ -457,7 +457,7 @@ tables = [
                     "expression": [
                         "let",
                         "    Source = MySQL.Database(\"127.0.0.1:3306\", \"mediapulse_db\", [ReturnSingleDatabase=true]),",
-                        "    Data = Source{[Schema=\"mediapulse_db\"]}[Data]{[Name=\"vw_fact_trending_snapshots\"]}[Data],",
+                        "    Data = Source{[Schema=\"mediapulse_db\", Item=\"vw_fact_trending_snapshots\", Kind=\"View\"]}[Data],",
                         "    Typed = Table.TransformColumnTypes(Data, {",
                         "        {\"snapshot_id\", Int64.Type}, {\"video_id\", type text}, {\"trending_date\", type date},",
                         "        {\"views\", Int64.Type}, {\"likes\", Int64.Type}, {\"dislikes\", Int64.Type}, {\"comment_count\", Int64.Type},",
@@ -501,7 +501,7 @@ tables = [
                     "expression": [
                         "let",
                         "    Source = MySQL.Database(\"127.0.0.1:3306\", \"mediapulse_db\", [ReturnSingleDatabase=true]),",
-                        "    Data = Source{[Schema=\"mediapulse_db\"]}[Data]{[Name=\"vw_dim_date\"]}[Data],",
+                        "    Data = Source{[Schema=\"mediapulse_db\", Item=\"vw_dim_date\", Kind=\"View\"]}[Data],",
                         "    Typed = Table.TransformColumnTypes(Data, {",
                         "        {\"full_date\", type date}, {\"calendar_year\", Int64.Type}, {\"month_number\", Int64.Type},",
                         "        {\"month_name\", type text}, {\"month_short\", type text}, {\"year_month_label\", type text},",

@@ -578,5 +578,87 @@ def test_modern_pbir_report_json_schema_compliance():
     assert '"layoutOptimization": "None"' in content, "Generator script missing layoutOptimization: None"
 
 
+def test_powerquery_unambiguous_navigation_keys():
+    """Verify that Power Query M expressions use exact navigation keys containing Schema, Item, and Kind.
+
+    Ambiguous navigation using only [Schema="mediapulse_db"] causes Power BI refresh failures:
+    'The key matched more than one row in the table.'
+
+    Validates exact navigation across:
+    1. powerbi/MediaPulse_Analytics.SemanticModel/model.bim
+    2. powerbi/powerquery/mysql_import_queries.pq
+    3. powerbi/build_powerbi_project.py
+    """
+    import json
+    import re
+
+    expected_views = {
+        "DimCategory": "vw_dim_category",
+        "DimChannel": "vw_dim_channel",
+        "DimVideo": "vw_dim_video",
+        "FactTrendingSnapshot": "vw_fact_trending_snapshots",
+        "DimDate": "vw_dim_date",
+    }
+
+    # 1. Validate model.bim
+    model_bim_path = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel" / "model.bim"
+    assert model_bim_path.exists(), "model.bim missing"
+    with open(model_bim_path, "r", encoding="utf-8") as f:
+        bim = json.load(f)
+
+    tables = {t["name"]: t for t in bim["model"]["tables"]}
+    for table_name, view_name in expected_views.items():
+        assert table_name in tables, f"Missing table {table_name} in model.bim"
+        partitions = tables[table_name].get("partitions", [])
+        assert len(partitions) > 0, f"No partitions in {table_name}"
+        m_lines = partitions[0]["source"]["expression"]
+        m_expr = " ".join(m_lines)
+
+        # Must NOT contain ambiguous multi-row navigation
+        assert '[Schema="mediapulse_db"]}[Data]' not in m_expr, (
+            f"Table {table_name} contains ambiguous [Schema=\"mediapulse_db\"] navigation"
+        )
+        assert '[Name="' not in m_expr, (
+            f"Table {table_name} uses deprecated [Name=...] navigation instead of [Item=..., Kind=...]"
+        )
+
+        # Must contain exact composite key with Schema, Item, Kind
+        pattern = (
+            rf'Source\{{\[Schema="mediapulse_db",\s*Item="{view_name}",\s*Kind="View"\]\}}\[Data\]'
+        )
+        assert re.search(pattern, m_expr), (
+            f"Table {table_name} does not match exact navigation pattern: {pattern}"
+        )
+
+    # 2. Validate mysql_import_queries.pq
+    pq_path = config.BASE_DIR / "powerbi" / "powerquery" / "mysql_import_queries.pq"
+    assert pq_path.exists(), "mysql_import_queries.pq missing"
+    pq_content = pq_path.read_text(encoding="utf-8")
+
+    assert '[Schema=DatabaseName]}[Data]' not in pq_content, (
+        "mysql_import_queries.pq contains ambiguous [Schema=DatabaseName]} navigation"
+    )
+    for table_name, view_name in expected_views.items():
+        expected_pq_nav = f'Source{{[Schema=DatabaseName, Item="{view_name}", Kind="View"]}}[Data]'
+        assert expected_pq_nav in pq_content, (
+            f"mysql_import_queries.pq missing exact navigation for {view_name}: {expected_pq_nav}"
+        )
+
+    # 3. Validate build_powerbi_project.py generator script
+    gen_path = config.BASE_DIR / "powerbi" / "build_powerbi_project.py"
+    assert gen_path.exists(), "build_powerbi_project.py missing"
+    gen_content = gen_path.read_text(encoding="utf-8")
+
+    assert '[Schema=\\"mediapulse_db\\"]}[Data]' not in gen_content, (
+        "build_powerbi_project.py contains ambiguous navigation"
+    )
+    for table_name, view_name in expected_views.items():
+        expected_gen_nav = f'Source{{[Schema=\\"mediapulse_db\\", Item=\\"{view_name}\\", Kind=\\"View\\"]}}[Data]'
+        assert expected_gen_nav in gen_content, (
+            f"build_powerbi_project.py missing exact navigation for {view_name}: {expected_gen_nav}"
+        )
+
+
+
 
 
