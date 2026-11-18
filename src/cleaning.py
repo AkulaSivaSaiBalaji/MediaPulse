@@ -4,7 +4,7 @@ Implements robust, reproducible data cleaning for the YouTube trending dataset:
 - Schema and required column validation.
 - Non-overlapping exact row and same-day snapshot deduplication.
 - Quarantine of unrecoverable identifiers (#NAME?, #VALUE!).
-- Timezone-aware date parsing and trending velocity computation.
+- Timezone-aware date parsing and time to observed trending computation.
 - Category taxonomy enrichment with authoritative fallback.
 - Reusable pipeline execution with full data reconciliation.
 """
@@ -197,11 +197,11 @@ def handle_missing_values(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def standardize_dates(df: pd.DataFrame) -> pd.DataFrame:
-    """Parse dates, extract temporal features, and compute trending latency.
+    """Parse dates, extract temporal features, and compute time to observed trending latency.
 
     - trending_date: parsed from %y.%d.%m to standard ISO date YYYY-MM-DD.
     - publish_time: parsed as UTC datetime.
-    - days_to_trend: days elapsed between video publish and trending observation.
+    - days_to_trend: days elapsed between video publish and trending observation (time to observed trending).
 
     Args:
         df: Input DataFrame.
@@ -224,7 +224,7 @@ def standardize_dates(df: pd.DataFrame) -> pd.DataFrame:
         cleaned["publish_hour"] = parsed_publish.dt.hour
         cleaned["publish_day_name"] = parsed_publish.dt.day_name()
 
-    # Calculate days between publication and trending
+    # Calculate days between publication and trending (time to observed trending)
     if "trending_date" in cleaned.columns and "publish_date" in cleaned.columns:
         trending_dt = pd.to_datetime(cleaned["trending_date"])
         publish_dt = pd.to_datetime(cleaned["publish_date"])
@@ -258,24 +258,65 @@ def enrich_categories(
     return cleaned
 
 
-def validate_numerical_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Coerce and validate numeric metric columns to non-negative integers.
+def audit_negative_values(
+    df: pd.DataFrame, columns: Optional[List[str]] = None
+) -> Dict[str, int]:
+    """Audit numeric columns for negative values prior to clipping or correction.
 
     Args:
         df: Input DataFrame.
+        columns: List of numeric column names to audit (defaults to views, likes, dislikes, comment_count).
 
     Returns:
-        DataFrame with validated numerical metrics.
+        Dictionary mapping column name to the count of negative values found.
+    """
+    cols = columns or ["views", "likes", "dislikes", "comment_count"]
+    negative_counts = {}
+    for col in cols:
+        if col in df.columns:
+            coerced = pd.to_numeric(df[col], errors="coerce")
+            negative_counts[col] = int((coerced < 0).sum())
+        else:
+            negative_counts[col] = 0
+    return negative_counts
+
+
+def validate_numerical_columns(
+    df: pd.DataFrame,
+    columns: Optional[List[str]] = None,
+    return_audit: bool = False,
+) -> Any:
+    """Audit and validate numeric metric columns to non-negative integers.
+
+    Performs an explicit pre-clipping audit of negative values before applying
+    defensive bounding at 0 (lower=0).
+
+    Correction Policy:
+        1. Social engagement metrics (views, likes, dislikes, comments) are physical counting
+           events and strictly non-negative.
+        2. Explicitly audit and count negative values prior to clipping or coercion.
+        3. Bound any negative anomalies at 0 via .clip(lower=0) as a defensive pipeline safeguard.
+        4. Coerce non-numeric and null entries to 0 and cast to 64-bit integer.
+
+    Args:
+        df: Input DataFrame.
+        columns: Optional list of numeric columns.
+        return_audit: If True, returns tuple of (cleaned_df, negative_audit_counts).
+
+    Returns:
+        DataFrame with validated numerical metrics (or tuple with audit dict if return_audit=True).
     """
     cleaned = df.copy()
-    metric_cols = ["views", "likes", "dislikes", "comment_count"]
+    metric_cols = columns or ["views", "likes", "dislikes", "comment_count"]
+    audit_counts = audit_negative_values(cleaned, columns=metric_cols)
 
     for col in metric_cols:
         if col in cleaned.columns:
-            # Coerce to numeric, replace nulls/invalids with 0, ensure non-negative
             cleaned[col] = pd.to_numeric(cleaned[col], errors="coerce").fillna(0).astype(int)
             cleaned[col] = cleaned[col].clip(lower=0)
 
+    if return_audit:
+        return cleaned, audit_counts
     return cleaned
 
 
@@ -293,9 +334,9 @@ def run_cleaning_pipeline(
     3. Quarantine of invalid identifiers (#NAME?, #VALUE!).
     4. Deterministic same-day snapshot deduplication on valid records.
     5. Missing value imputation and flag generation.
-    6. Date standardization and velocity calculation.
+    6. Date standardization and time to observed trending calculation.
     7. Taxonomy mapping and category enrichment.
-    8. Numerical validation and engagement rate calculation.
+    8. Numerical validation with explicit pre-clipping audit and engagement rate calculation.
     9. Artifact export.
 
     Args:
@@ -334,7 +375,7 @@ def run_cleaning_pipeline(
     clean_valid_df = handle_missing_values(clean_valid_df)
     quarantined_df = handle_missing_values(quarantined_df)
 
-    # 6. Date Processing
+    # 6. Date Processing (Time to Observed Trending)
     clean_valid_df = standardize_dates(clean_valid_df)
     quarantined_df = standardize_dates(quarantined_df)
 
@@ -342,9 +383,9 @@ def run_cleaning_pipeline(
     clean_valid_df = enrich_categories(clean_valid_df, category_map=cat_map)
     quarantined_df = enrich_categories(quarantined_df, category_map=cat_map)
 
-    # 8. Numerical Validation
-    clean_valid_df = validate_numerical_columns(clean_valid_df)
-    quarantined_df = validate_numerical_columns(quarantined_df)
+    # 8. Numerical Validation with Explicit Pre-Clipping Audit
+    clean_valid_df, clean_neg_audit = validate_numerical_columns(clean_valid_df, return_audit=True)
+    quarantined_df, quar_neg_audit = validate_numerical_columns(quarantined_df, return_audit=True)
 
     # Calculate Engagement Rate: (likes + comments) / views * 100
     from src import metrics
@@ -370,6 +411,7 @@ def run_cleaning_pipeline(
         "cleaned_valid_rows": len(clean_valid_df),
         "reconciled_sum": reconciled_sum,
         "reconciliation_passed": raw_row_count == reconciled_sum,
+        "negative_value_audit": clean_neg_audit,
         "unique_valid_videos": int(clean_valid_df["video_id"].nunique()),
         "unique_channels": int(clean_valid_df["channel_title"].nunique()),
         "trending_date_min": str(clean_valid_df["trending_date"].min()),

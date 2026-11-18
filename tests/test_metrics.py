@@ -118,7 +118,7 @@ def test_channel_kpis():
 
 
 def test_category_kpis():
-    """Verify category benchmarks correctly roll up video KPIs."""
+    """Verify category summary metrics correctly roll up video KPIs."""
     df = pd.DataFrame({
         "video_id": ["v1", "v2"],
         "title": ["T1", "T2"],

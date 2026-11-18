@@ -24,6 +24,10 @@ def calculate_engagement_rate(
         - Coerces negative inputs to zero.
         - Returns float Series rounded to 4 decimal places.
 
+    Analytical Note:
+        Observed averages in sample datasets reflect cohort distributions
+        and should not be treated or described as universal industry benchmarks.
+
     Args:
         views: Series of view counts.
         likes: Series of like counts.
@@ -230,13 +234,13 @@ def compute_channel_kpis(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_category_kpis(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute category-level media performance benchmarks.
+    """Compute category-level media performance summary metrics.
 
     Args:
         df: Input DataFrame of cleaned observations.
 
     Returns:
-        DataFrame with category benchmark metrics.
+        DataFrame with category performance summary metrics.
     """
     cat_col = "category_title" if "category_title" in df.columns else "category_id"
     if df.empty or cat_col not in df.columns:

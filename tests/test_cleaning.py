@@ -147,7 +147,7 @@ def test_missing_description_handling(sample_raw_data):
 
 
 def test_standardize_dates(sample_raw_data):
-    """Verify date parsing to ISO format, publish timestamp parsing, and days_to_trend calculation."""
+    """Verify date parsing to ISO format, publish timestamp parsing, and time to observed trending (days_to_trend)."""
     processed = cleaning.standardize_dates(sample_raw_data)
     assert "publish_date" in processed.columns
     assert "publish_hour" in processed.columns
@@ -165,6 +165,39 @@ def test_category_enrichment(sample_raw_data):
     assert enriched.loc[0, "category_title"] == "Entertainment"
     # Category 29 -> Nonprofits & Activism
     assert enriched.loc[3, "category_title"] == "Nonprofits & Activism"
+
+
+def test_audit_negative_values():
+    """Verify explicit pre-clipping audit accurately counts negative values."""
+    df_with_negatives = pd.DataFrame({
+        "views": [-100, 500, 1000],
+        "likes": [10, -5, 20],
+        "dislikes": [1, 2, -3],
+        "comment_count": [0, 5, 10],
+    })
+    neg_audit = cleaning.audit_negative_values(df_with_negatives)
+    assert neg_audit["views"] == 1
+    assert neg_audit["likes"] == 1
+    assert neg_audit["dislikes"] == 1
+    assert neg_audit["comment_count"] == 0
+
+
+def test_validate_numerical_columns_with_audit():
+    """Verify pre-clipping audit and defensive lower-bounding at 0."""
+    df = pd.DataFrame({
+        "views": [-50, 100],
+        "likes": [-10, 20],
+        "dislikes": [5, -2],
+        "comment_count": [0, -1],
+    })
+    cleaned, audit = cleaning.validate_numerical_columns(df, return_audit=True)
+    assert audit == {"views": 1, "likes": 1, "dislikes": 1, "comment_count": 1}
+    assert (cleaned["views"] >= 0).all()
+    assert (cleaned["likes"] >= 0).all()
+    assert (cleaned["dislikes"] >= 0).all()
+    assert (cleaned["comment_count"] >= 0).all()
+    assert cleaned.loc[0, "views"] == 0
+    assert cleaned.loc[1, "views"] == 100
 
 
 def test_empty_dataframe_cleaning():
@@ -191,3 +224,4 @@ def test_cleaning_pipeline_idempotency():
     assert results1["quarantined_rows"] == results2["quarantined_rows"]
     assert results1["exact_duplicates_removed"] == results2["exact_duplicates_removed"]
     assert results1["sameday_duplicates_removed"] == results2["sameday_duplicates_removed"]
+    assert results1["negative_value_audit"] == {"views": 0, "likes": 0, "dislikes": 0, "comment_count": 0}

@@ -39,10 +39,25 @@ $$\text{Raw Rows } (37,352) = \text{Exact Dups } (4,263) + \text{Quarantined } (
 
 ## 3. Cleaning Rules & Engineering Methodologies
 
-### 3.1 Schema Validation
-- Enforced required presence of all 16 canonical YouTube columns.
-- Coerced metrics (`views`, `likes`, `dislikes`, `comment_count`) into non-negative 64-bit integers.
-- Any negative metrics are bounded at `0` using `df[col].clip(lower=0)`.
+### 3.1 Schema Validation & Negative Numeric Value Audit
+
+#### Canonical Schema Enforcement
+- Enforced required presence of all 16 canonical YouTube columns (`video_id`, `trending_date`, `title`, `channel_title`, `category_id`, `publish_time`, `tags`, `views`, `likes`, `dislikes`, `comment_count`, `thumbnail_link`, `comments_disabled`, `ratings_disabled`, `video_error_or_removed`, `description`).
+
+#### Explicit Pre-Clipping Audit of Negative Numeric Values
+Before applying any transformation, imputation, or defensive clipping, an explicit pre-clipping audit is executed on all numeric metrics (`views`, `likes`, `dislikes`, `comment_count`) via `audit_negative_values()`:
+- **Pre-Clipping Audit Findings (37,352 raw rows):**
+  * `views`: **`0`** negative values (observed minimum: `4,024`, maximum: `125,432,237`).
+  * `likes`: **`0`** negative values (observed minimum: `0`, maximum: `2,912,710`).
+  * `dislikes`: **`0`** negative values (observed minimum: `0`, maximum: `1,545,000`).
+  * `comment_count`: **`0`** negative values (observed minimum: `0`, maximum: `827,755`).
+  * **Total Negative Metric Values Detected:** **`0`**.
+
+#### Correction & Bounding Policy
+- **Non-Negativity Principle:** In digital media telemetry, views, likes, dislikes, and comments represent physical counting processes and cannot be negative.
+- **Audit-First Rule:** All numeric columns are audited and logged prior to mutation.
+- **Defensive Safeguard:** Any corrupt negative observations (e.g. from telemetry integer overflow, signed bit corruptions, or negative sentinel codes) are defensively bounded at `0` using `df[col].clip(lower=0)`, and non-numeric or missing entries coerced to `0`.
+- **Integrity Result:** Because the raw dataset contained zero negative values, zero records required value mutation during clipping; the clipping policy operates strictly as an active defensive safeguard for pipeline robustness.
 
 ### 3.2 Non-Overlapping Deduplication Hierarchy
 A major flaw in naive media analytics is either over-deduplicating (treating multi-day trending persistence as duplicates) or under-deduplicating (allowing intra-day scrape noise to inflate view totals):
@@ -75,10 +90,10 @@ flowchart TD
 - **Imputation Decision:** Replaced null values with empty string `""` (`df['description'].fillna('')`).
 - **Feature Engineering:** Added binary indicator `has_description = True/False`.
 
-### 3.5 Temporal Processing & Viral Velocity
+### 3.5 Temporal Processing & Time to Observed Trending
 - **Trending Date:** Converted from `%y.%d.%m` to standard ISO `YYYY-MM-DD` date object.
 - **Publish Timestamp:** Parsed into UTC datetime (`publish_datetime_utc`), extracting `publish_date`, `publish_hour`, and `publish_day_name`.
-- **Viral Velocity (`days_to_trend`):** Calculated as `(trending_date - publish_date).days`.
+- **Time to Observed Trending (`days_to_trend`):** Calculated as `(trending_date - publish_date).days`, measuring the calendar latency in days between video publication and its observed appearance on the YouTube trending list.
   * Negative duration anomalies: **`0`** (every video was published on or before trending).
   * Mean latency to trend: **8.92 days**.
   * Median latency to trend: **2.0 days** (50% of videos trend within 48 hours of upload).
@@ -102,6 +117,9 @@ Calculated three standardized media performance metrics in `src/metrics.py`:
 - **Division-by-zero safety:** Handled via `np.where(views > 0, ..., 0.0)`.
 - **Maximum Engagement Rate:** `77.43%` (zero records exceed 100%).
 
+> **Analytical Rigor Notice (Benchmark vs. Observed Sample Metric):**  
+> The observed dataset sample average engagement rate (**2.47%** mean, **1.09%** median) represents the empirical central tendency of this specific trending dataset cohort. Because trending videos represent an inherently non-random, viral subset of content that has already achieved exceptional viewer traction, this observed average **must not be characterized or cited as an industry benchmark**. True industry benchmarks represent broad cross-platform creator averages across all published videos, whereas our figures are purely observed descriptive statistics of this trending sample.
+
 ---
 
 ## 4. Before-and-After Dataset Statistics
@@ -118,8 +136,8 @@ Calculated three standardized media performance metrics in `src/metrics.py`:
 | **Mean Views** | `1,060,478` | `1,080,729` | More accurate snapshot mean |
 | **Mean Likes** | `27,083` | `27,787` | Filtered duplicate noise |
 | **Mean Comments** | `2,677` | `2,735` | Filtered duplicate noise |
-| **Mean Engagement Rate** | N/A (uncalculated) | `2.47%` | Baseline media benchmark |
-| **Median Engagement Rate** | N/A (uncalculated) | `1.09%` | Baseline media benchmark |
+| **Mean Engagement Rate** | N/A (uncalculated) | `2.47%` | Observed sample mean (not an industry benchmark) |
+| **Median Engagement Rate** | N/A (uncalculated) | `1.09%` | Observed sample median (not an industry benchmark) |
 
 ---
 
@@ -130,7 +148,7 @@ Calculated three standardized media performance metrics in `src/metrics.py`:
 | `src/cleaning.py` | Validated data cleaning pipeline functions | **Tracked in Git** |
 | `src/metrics.py` | Media KPIs, engagement rates & aggregations | **Tracked in Git** |
 | `notebooks/02_data_cleaning.ipynb` | Executed end-to-end cleaning walkthrough | **Tracked in Git** |
-| `tests/test_cleaning.py` | 12 automated pipeline unit tests | **Tracked in Git** |
+| `tests/test_cleaning.py` | 14 automated pipeline unit tests | **Tracked in Git** |
 | `tests/test_metrics.py` | 9 automated business metric unit tests | **Tracked in Git** |
 | `reports/cleaning_report.md` | Executive and technical cleaning report | **Tracked in Git** |
 | `data/processed/cleaned_youtube_india.csv` | Clean analysis-ready dataset (32,265 rows) | **Excluded (`.gitignore`)** |
