@@ -4,13 +4,13 @@
 **Target Role:** Wipro Analyst L1 (Job ID: 218535) — Business Analyst / Data Analyst (Media)  
 **Prepared By:** MediaPulse Analytics & Database Engineering Team  
 **Database Reference:** MySQL Server 8.0.46 Community (`mediapulse_db`)  
-**Status:** Completed & Validated (20 Queries Executed, 67/67 Tests Passing)  
+**Status:** Completed & Validated (20 Queries Executed, 71/71 Tests Passing)  
 
 ---
 
 ## 1. Executive Summary & Pre-Implementation Verification
 
-Phase 6 marks the implementation of a production-grade SQL analytics suite developed directly against the verified MySQL 8 relational database (`mediapulse_db`). The suite addresses critical executive questions surrounding content reach, audience engagement dynamics, creator publishing cadence, and viral breakout velocity across the Indian YouTube trending ecosystem.
+Phase 6 marks the implementation of a production-grade SQL analytics suite developed directly against the verified MySQL 8 relational database (`mediapulse_db`). The suite addresses critical business questions surrounding content reach, audience engagement dynamics, creator publishing cadence, and viral breakout velocity across the Indian YouTube trending ecosystem between November 2017 and June 2018.
 
 ### Database Verification Summary:
 - **Baseline Git Commit:** Executed on branch `develop` from Phase 5 commit `bed3bed`.
@@ -25,12 +25,12 @@ Phase 6 marks the implementation of a production-grade SQL analytics suite devel
 
 ## 2. Portfolio Structure & Query Taxonomy
 
-To maintain modularity and avoid redundant script duplication, the 20 analytical queries are organized into three dedicated SQL files:
+To maintain modularity and avoid redundant script duplication, the 20 analytical queries are organized into three dedicated SQL scripts:
 
 | File Name | Query Range | Core SQL Concepts Demonstrated | Analytical Focus |
 | :--- | :---: | :--- | :--- |
 | [sql/advanced_analytics.sql](file:///D:/MediaPulse/sql/advanced_analytics.sql) | Q01 – Q08 | CTEs, `DATE_FORMAT()`, `DATEDIFF()`, `FIELD()`, `MOD()`, `CASE WHEN`, Window `SUM() OVER()` | Volume concentration, peak view reach, monthly activity, upload scheduling, viral latency, persistence, and engagement tiers. |
-| [sql/window_functions.sql](file:///D:/MediaPulse/sql/window_functions.sql) | Q09 – Q14 | `ROW_NUMBER()`, `DENSE_RANK()`, `LAG()`, Window Frame `ROWS BETWEEN 6 PRECEDING`, Partitioned Window `SUM() OVER(PARTITION BY)` | Top 3 videos per category, channel genre ranks, month-over-month growth, 7-day rolling trailing velocity, Pareto view contributions. |
+| [sql/window_functions.sql](file:///D:/MediaPulse/sql/window_functions.sql) | Q09 – Q14 | `ROW_NUMBER()`, `DENSE_RANK()`, `LAG()`, Window Frame `ROWS BETWEEN 6 PRECEDING`, Partitioned Window `SUM() OVER(PARTITION BY)` | Top 3 videos per category, channel genre ranks, month-over-month growth, 7-observation rolling trailing velocity, Pareto view contributions. |
 | [sql/business_queries.sql](file:///D:/MediaPulse/sql/business_queries.sql) | Q15 – Q20 | Double CTEs, Percentile Window Median, Conditional Aggregation, Safe `NULLIF()` Division | Publisher longevity portfolios, true median engagement rates, Day-0 viral breakouts, multi-genre channel diversification, comment disable impact, prime-time upload ROI. |
 
 ---
@@ -83,32 +83,35 @@ Each finding pairs an executive business question with verified SQL results and 
 
 ---
 
-### Finding 4: Rapid Trending Induction Window (48-Hour Velocity Rule)
-- **Business Question:** How rapidly do published videos enter the YouTube India trending feed?
-- **SQL Technique:** CTE calculating `DATEDIFF(MIN(trending_date), publish_date)` at the unique-video grain, grouped via `CASE WHEN` into operational latency brackets.
+### Finding 4: Rapid Trending Induction Window (The $\le 2$ Day Velocity Pattern)
+- **Business Question:** What was the elapsed time between video publication and earliest observed trending appearance among trending titles?
+- **SQL Technique:** CTE calculating `DATEDIFF(MIN(s.trending_date), v.publish_date)` at the unique-video grain, grouped via `CASE WHEN` into operational latency brackets.
 - **Actual Result (Q06):**
   - **Day 0 (Same Day):** 420 videos (**2.58%**)
   - **Day 1 – 2 (Rapid Induction):** 15,300 videos (**93.84%**)
   - **Cumulative within $\le 2$ Days:** **15,720 videos (96.41%)**
   - **Day 3 – 7 (Moderate Latency):** 565 videos (**3.47%**)
   - **Over 7 Days (Archival / Sleeper):** 20 videos (**0.12%**)
-- **Business Interpretation:** YouTube's trending algorithm operates on extreme recency. Content that fails to gain immediate momentum within the first 48 hours of release has a negligible (3.59%) chance of ever entering the trending feed. Promotional spend and push notifications must be concentrated within the first 6–12 hours post-upload.
-- **Analytical Limitation:** The dataset captures snapshots collected once daily; hourly induction precision is not recorded in the raw scrape.
-- **Reference:** [Query 06 (sql/advanced_analytics.sql)](file:///D:/MediaPulse/sql/advanced_analytics.sql#L102-L127)
+  - **Total Denominator:** 16,305 unique videos (**100.00%**)
+- **Business Interpretation:** Among creative assets observed trending in this historical dataset, the vast majority (**96.41%**) achieved trending status within 48 hours of publication, while a small minority (**3.59%** / 585 unique videos) took longer than 2 days.
+- **Analytical Limitation (Conditioned on Trending):** This metric is strictly conditioned on videos that achieved trending presence ($N = 16,305$). Because the dataset contains only trending titles and no un-trended catalog data (survivorship bias), it cannot estimate the unconditional probability of trending among all uploaded videos across YouTube India.
+- **Reference:** [Query 06 (sql/advanced_analytics.sql)](file:///D:/MediaPulse/sql/advanced_analytics.sql#L118-L146)
 
 ---
 
-### Finding 5: Trending Shelf-Life & Transience (The 1-Day Horizon)
-- **Business Question:** How long do trending videos sustain their presence on the leaderboard?
+### Finding 5: Trending Persistence Across Distinct Snapshot Dates
+- **Business Question:** On how many distinct calendar dates were trending videos observed in the daily snapshots?
 - **SQL Technique:** Grouped `COUNT(DISTINCT trending_date)` per unique video, aggregated into duration tiers.
 - **Actual Result (Q07):**
   - **1 Day Only:** 7,824 unique videos (**47.99%**)
   - **2 Days:** 4,168 unique videos (**25.56%**)
+  - **1 or 2 Days Combined:** **11,992 unique videos (73.55%)**
   - **3 – 5 Days:** 4,087 unique videos (**25.07%**)
   - **Over 5 Days (High Longevity):** 226 unique videos (**1.39%**)
-- **Business Interpretation:** Almost half (48%) of all trending videos appear for only a single snapshot observation, and 73.55% disappear within 2 days. The trending feed is highly volatile, functioning as a high-churn discovery mechanism rather than a durable archive.
-- **Analytical Limitation:** Daily scraping gaps (such as missing dates in late April) may artificially truncate observed longitudinal runs for a minority of titles.
-- **Reference:** [Query 07 (sql/advanced_analytics.sql)](file:///D:/MediaPulse/sql/advanced_analytics.sql#L129-L153)
+  - **Total Denominator:** 16,305 unique videos (**100.00%**)
+- **Business Interpretation:** Nearly three-quarters (**73.55%**) of trending videos were observed on only one or two distinct daily snapshot dates. Only 1.39% appeared across more than 5 distinct snapshot dates, demonstrating that individual creative titles typically experience short observation windows in the daily scrapes.
+- **Analytical Limitation:** Daily scraping captures discrete point-in-time snapshots once per day rather than continuous telemetry. Distinct observed dates measure presence across discrete scraping runs and cannot establish uninterrupted feed residency, intraday churn, or permanent feed removal chronology.
+- **Reference:** [Query 07 (sql/advanced_analytics.sql)](file:///D:/MediaPulse/sql/advanced_analytics.sql#L148-L174)
 
 ---
 
@@ -150,16 +153,18 @@ Each finding pairs an executive business question with verified SQL results and 
 
 ---
 
-### Finding 8: Optimal Upload Scheduling & Prime-Time ROI
-- **Business Question:** What upload days and hours produce the highest publication density and viewing traction?
-- **SQL Technique:** Custom day-of-week sorting using `FIELD()`, combined with mathematical hour transformation (`MOD(publish_hour + 5, 24)`) and window functions.
+### Finding 8: Publication Timing Window Distributions (Historical Associations)
+- **Business Question:** What upload time windows were most common in the dataset, and what were their historical performance profiles?
+- **SQL Technique:** Custom day-of-week sorting using `FIELD()`, combined with UTC/IST hour mapping (`publish_hour`) and window functions.
 - **Actual Result (Q04, Q05, Q20):**
   - **Peak Upload Days:** Friday (**2,694 videos / 16.52%**) and Thursday (**2,502 videos / 15.34%**). Lowest on Sunday (**1,720 videos / 10.55%**).
-  - **Prime-Time Upload Window (12:00–16:00 UTC / 17:30–21:30 IST):** 5,152 unique videos (31.60% of catalog), delivering **690.6K mean peak views** and **2.38% mean engagement rate**.
-  - **Morning Window (04:00–08:00 UTC / 09:30–13:30 IST):** 4,473 unique videos (27.43% of catalog), delivering **750.5K mean peak views** and faster induction (**1.16 mean days to trend**).
-- **Business Interpretation:** Digital publishers strategically schedule uploads for Thursday and Friday afternoons to capitalize on weekend entertainment consumption. However, morning uploads (09:30–13:30 IST) demonstrate 8.7% higher average peak views and 15% faster induction latency, suggesting an underserved morning commute / news consumption window.
-- **Analytical Limitation:** Upload times reflect creator publishing choices, not necessarily consumer viewing peaks.
-- **Reference:** [Query 04](file:///D:/MediaPulse/sql/advanced_analytics.sql#L66-L79), [Query 05](file:///D:/MediaPulse/sql/advanced_analytics.sql#L81-L100), [Query 20](file:///D:/MediaPulse/sql/business_queries.sql#L143-L175)
+  - **Evening Window (12:00–16:59 UTC / 17:30–22:29 IST):** 5,152 unique videos (**31.60%** of catalog), with 690.6K mean peak views, 1.36 mean days to trend, and 2.38% mean ER.
+  - **Morning Window (04:00–08:59 UTC / 09:30–14:29 IST):** 4,473 unique videos (**27.43%** of catalog), with 750.5K mean peak views, 1.16 mean days to trend, and 1.89% mean ER.
+  - **Off-Peak / Night Window (Remaining 14 hours):** 6,680 unique videos (**40.97%** of catalog), with 633.7K mean peak views, 1.37 mean days to trend, and 1.93% mean ER.
+  - **Total Denominator:** 16,305 unique videos (**100.00%**).
+- **Business Interpretation:** In the 2017–2018 dataset, uploads were heavily concentrated in the afternoon and evening hours (IST), aligning with family viewing and primetime digital entertainment. Titles uploaded during morning hours exhibited shorter elapsed latency to first trending (1.16 days), which may reflect daytime news cycles and educational study schedules.
+- **Analytical Limitation (Non-Causal):** These patterns represent observational historical associations. They do not demonstrate that shifting an upload to morning hours will causally increase viewer demand or guarantee higher view volume. Factors such as channel authority, pre-existing subscriber notifications, and genre distribution heavily confound this relationship.
+- **Reference:** [Query 04](file:///D:/MediaPulse/sql/advanced_analytics.sql#L66-L79), [Query 05](file:///D:/MediaPulse/sql/advanced_analytics.sql#L81-L100), [Query 20](file:///D:/MediaPulse/sql/business_queries.sql#L185-L215)
 
 ---
 
@@ -179,21 +184,26 @@ Each finding pairs an executive business question with verified SQL results and 
 
 ---
 
-### Finding 10: Audience Interaction Policies & Comment Disabling Penalties
-- **Business Question:** How does disabling viewer comments impact video reach and engagement?
-- **SQL Technique:** CTE grouping by `comments_disabled` boolean flag, calculating mean peak views, likes, comments, and engagement rates with safe division.
+### Finding 10: Audience Interaction Policy & Comment Status (Observed Associations)
+- **Business Question:** What differences exist in observed view counts and engagement metrics between videos with comments enabled versus disabled?
+- **SQL Technique:** CTE grouping by video-level `v.comments_disabled` boolean flag at publication across all 16,305 unique videos, calculating mean peak views, likes, comments, and engagement rates with safe division.
 - **Actual Result (Q19):**
-  - **Comments Enabled:** 15,732 videos (**96.49%**)
+  - **Comments Enabled:** 15,732 videos (**96.49%** of catalog)
     - Mean Peak Views: **693,609 views**
     - Mean Peak Likes: **14,912 likes**
+    - Mean Peak Comments: **1,547 comments**
     - Mean Engagement Rate: **2.1125%**
-  - **Comments Disabled:** 573 videos (**3.51%**)
-    - Mean Peak Views: **411,453 views** (**40.7% lower**)
-    - Mean Peak Likes: **2,099 likes** (**85.9% lower**)
-    - Mean Engagement Rate: **0.5599%** (**73.5% lower**)
-- **Business Interpretation:** Disabling audience commentary severely suppresses video performance. Videos with disabled comments experience a **40.7% reduction in mean peak views** and an **85.9% drop in likes**. Creators and brands should avoid disabling comments unless legally or reputationally mandatory, as the YouTube recommendation algorithm strongly disincentivizes non-interactive media.
-- **Analytical Limitation:** Direction of causality cannot be definitively proven: controversial or low-quality videos may prompt creators to disable comments defensively after underperforming.
-- **Reference:** [Query 19 (sql/business_queries.sql)](file:///D:/MediaPulse/sql/business_queries.sql#L119-L141)
+  - **Comments Disabled:** 573 videos (**3.51%** of catalog)
+    - Mean Peak Views: **411,453 views** (40.7% lower than enabled)
+    - Mean Peak Likes: **2,099 likes** (85.9% lower than enabled)
+    - Mean Peak Comments: **7 comments** (from historical records prior to disabling)
+    - Mean Engagement Rate: **0.5599%** (73.5% lower than enabled)
+  - **Total Denominator:** 16,305 unique videos (**100.00%**).
+- **Business Interpretation:** In the observed sample, titles with disabled comments exhibited substantially lower peak views, likes, and overall engagement rates.
+- **Analytical Limitation (Non-Causal & Confounding):** These differences cannot be interpreted as a direct algorithmic penalty or disincentive. Key confounding variables include:
+  1. **Category & Content Type:** Broadcast news updates, government public announcements, and corporate advisories frequently disable comments by editorial policy; these content types inherently have lower view ceilings than entertainment blockbusters.
+  2. **Reverse Causation:** Creators and media brands often defensively disable comments *after* experiencing severe public backlash, negative reception, or coordinated spam. In such cases, poor reception caused comment disabling, rather than comment disabling causing low views.
+- **Reference:** [Query 19 (sql/business_queries.sql)](file:///D:/MediaPulse/sql/business_queries.sql#L148-L183)
 
 ---
 
@@ -233,19 +243,19 @@ Live MySQL `EXPLAIN` query plans were analyzed for representative complex querie
   - `table: v, type: eq_ref, key: PRIMARY, rows: 1`
   - `table: cat, type: eq_ref, key: PRIMARY, rows: 1`
   - `table: <derived2>, type: ALL, rows: 27895, filtered: 33.33%, Extra: Using where; Using filesort`
-- **Technical Insight:** `ROW_NUMBER() OVER(PARTITION BY category_id ORDER BY peak_views DESC)` sorts partitioned partitions efficiently; the primary key lookups (`eq_ref`) for `v` and `cat` resolve in $O(1)$ constant time.
+- **Technical Insight:** An `eq_ref` join type indicates an indexed equality lookup on a primary key or unique non-null index, fetching at most one row per preceding table row. This significantly reduces search work compared to full table scans (`ALL`) or range scans, though actual I/O cost depends on buffer pool hit rates, B-tree depth, and data distribution.
 
-### 3. Query 12 (Rolling 7-Day Window Framing):
+### 3. Query 12 (Rolling 7-Observation Window Framing):
 - **Execution Plan:**
   - `table: trending_snapshots, type: ALL, rows: 27895, Extra: Using temporary; Using filesort`
   - `table: <derived2>, type: ALL, rows: 27895, Extra: None`
-- **Technical Insight:** The window frame `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` executes sequentially across the 205 pre-aggregated daily records, completing in 0.115s.
+- **Technical Insight:** The window frame `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` executes as a 7-observation rolling window across the 205 distinct observed snapshot dates (accounting for the 8 collection gaps in the 213-calendar-day historical span), smoothing day-to-day scraper volatility in 0.115s.
 
 ---
 
 ## 6. Automated Test Suite Results
 
-The comprehensive test suite incorporates unit tests, operational checks, and live SQL assertions:
+The comprehensive test suite incorporates unit tests, operational checks, and live SQL assertions across 8 test modules:
 
 ```text
 ============================= test session starts =============================
@@ -254,20 +264,20 @@ cachedir: .pytest_cache
 rootdir: D:\MediaPulse
 configfile: pytest.ini
 plugins: anyio-4.16.0, platformdirs-4.14.5
-collected 67 items
+collected 71 items
 
 tests/test_cleaning.py ..............                                    [ 20%]
-tests/test_database.py .....                                             [ 28%]
-tests/test_eda.py ...........                                            [ 44%]
-tests/test_ingestion.py .....                                            [ 52%]
-tests/test_metrics.py .........                                          [ 65%]
-tests/test_profiling.py ..........                                       [ 80%]
-tests/test_smoke.py ....                                                 [ 86%]
-tests/test_sql_analytics.py .........                                    [100%]
+tests/test_database.py .....                                             [ 27%]
+tests/test_eda.py ...........                                            [ 42%]
+tests/test_ingestion.py .....                                            [ 49%]
+tests/test_metrics.py .........                                          [ 62%]
+tests/test_profiling.py ..........                                       [ 76%]
+tests/test_smoke.py ....                                                 [ 82%]
+tests/test_sql_analytics.py .............                                [100%]
 
-======================== 67 passed in 79.24s (0:01:19) ========================
+======================== 71 passed in 85.12s (0:01:25) ========================
 ```
-- **67 Tests Passed / 0 Failed / 0 Skipped / 0 Warnings:** Validates query execution, non-empty datasets, column contracts, window rankings, month-over-month lag values, rolling moving averages, and exact mathematical reconciliation against Phase 4 KPIs.
+- **71 Tests Passed / 0 Failed / 0 Skipped / 0 Warnings:** Validates query execution, non-empty datasets, column contracts, window rankings, month-over-month lag values, rolling moving averages, trending latency denominators, persistence brackets, comment status groups, and exact mathematical reconciliation against Phase 4 KPIs.
 
 ---
 
@@ -276,6 +286,6 @@ tests/test_sql_analytics.py .........                                    [100%]
 1. [advanced_analytics.sql](file:///D:/MediaPulse/sql/advanced_analytics.sql): Core analytical queries (Q01–Q08).
 2. [window_functions.sql](file:///D:/MediaPulse/sql/window_functions.sql): Advanced window and ranking queries (Q09–Q14).
 3. [business_queries.sql](file:///D:/MediaPulse/sql/business_queries.sql): Strategic business intelligence queries (Q15–Q20).
-4. [test_sql_analytics.py](file:///D:/MediaPulse/tests/test_sql_analytics.py): 9 automated SQL integration tests.
+4. [test_sql_analytics.py](file:///D:/MediaPulse/tests/test_sql_analytics.py): 13 automated SQL integration tests.
 5. [sql_analytics_report.md](file:///D:/MediaPulse/reports/sql_analytics_report.md): In-depth analytical and performance report.
 6. [sql_query_explanations.md](file:///D:/MediaPulse/reports/sql_query_explanations.md): Technical explanations and 15 SQL interview questions & answers.

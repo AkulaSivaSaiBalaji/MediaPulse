@@ -104,10 +104,11 @@ FROM monthly_observations
 ORDER BY trending_year_month ASC;
 
 -- ------------------------------------------------------------------------------
--- Query 12: Rolling 7-Day Trending Snapshot Observations (Window Frame Analysis)
+-- Query 12: Rolling 7-Observation Trending Snapshots (Window Frame Analysis)
 -- Concept: CTE, Window Frame (ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), Moving Averages
--- Business Purpose: Smooths out daily collection fluctuations and weekend spikes
---                   to reveal the underlying 7-day trailing velocity of the trending list.
+-- Analytical Note: Evaluates a 7-observation sliding window across the 205 distinct
+--                  observed snapshot dates (which contain 8 collection gaps across the
+--                  213-calendar-day historical span), rather than a continuous 7-calendar-day window.
 -- ------------------------------------------------------------------------------
 WITH daily_snapshot_counts AS (
     SELECT
@@ -124,14 +125,14 @@ SELECT
     SUM(daily_snapshots) OVER(
         ORDER BY trending_date
         ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-    ) AS rolling_7day_total_snapshots,
+    ) AS rolling_7obs_total_snapshots,
     ROUND(
         AVG(daily_snapshots) OVER(
             ORDER BY trending_date
             ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
         ),
         2
-    ) AS rolling_7day_avg_snapshots
+    ) AS rolling_7obs_avg_snapshots
 FROM daily_snapshot_counts
 ORDER BY trending_date ASC;
 

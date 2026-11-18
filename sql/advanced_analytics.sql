@@ -117,8 +117,10 @@ ORDER BY publish_hour ASC;
 -- ------------------------------------------------------------------------------
 -- Query 06: Time to First Observed Trending Appearance (Unique-Video Latency)
 -- Concept: CTE, MIN(trending_date), DATEDIFF(), CASE WHEN Categorization
--- Business Purpose: Measures viral latency at the creative asset grain. Groups
---                   videos into induction buckets (Same Day, Rapid, Moderate, Sleeper).
+-- Analytical Note: Evaluates elapsed calendar days from publication to earliest observed
+--                  trending snapshot. Conditioned on trending: applies strictly to videos
+--                  in this dataset (16,305 unique titles) and does not represent the probability
+--                  of trending among all uploaded videos on YouTube India.
 -- ------------------------------------------------------------------------------
 WITH video_first_trending AS (
     SELECT
@@ -146,8 +148,9 @@ ORDER BY MIN(days_to_first_trend) ASC;
 -- ------------------------------------------------------------------------------
 -- Query 07: Trending Persistence Distribution (Longevity in Distinct Dates)
 -- Concept: CTE, COUNT(DISTINCT trending_date), CASE WHEN Longevity Buckets
--- Business Purpose: Evaluates trending shelf-life. Distinguishes fleeting single-day
---                   wonders from persistent multi-day audience anchors.
+-- Analytical Note: Evaluates distinct calendar dates each video appeared on the trending list.
+--                  Measures presence across discrete daily scrapes, not uninterrupted feed residency,
+--                  continuous retention, or feed exit velocity.
 -- ------------------------------------------------------------------------------
 WITH video_longevity AS (
     SELECT

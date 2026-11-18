@@ -170,9 +170,9 @@ def test_rolling_7day_moving_averages(db_engine):
         df = pd.DataFrame(rows, columns=cols)
 
         assert len(df) == 205  # 205 distinct trending dates
-        # On row 7 (index 6), rolling_7day_total equals sum of first 7 rows
+        # On row 7 (index 6), rolling_7obs_total equals sum of first 7 rows
         first_7_sum = int(df.iloc[:7]["daily_snapshots"].sum())
-        assert int(df.iloc[6]["rolling_7day_total_snapshots"]) == first_7_sum
+        assert int(df.iloc[6]["rolling_7obs_total_snapshots"]) == first_7_sum
 
 
 @pytest.mark.skipif(not is_live_mysql, reason="Requires live MySQL server")
@@ -217,3 +217,93 @@ def test_top_channels_portfolio_reconciliation(db_engine):
         assert top_row["channel_title"] == "Study IQ education"
         assert top_row["unique_videos"] == 169
         assert top_row["max_single_video_views"] == 454576
+
+
+@pytest.mark.skipif(not is_live_mysql, reason="Requires live MySQL server")
+def test_trending_latency_denominators(db_engine):
+    """Verify Query 06 latency brackets sum to 16,305 unique videos and match verified percentages."""
+    sql_path = config.BASE_DIR / "sql" / "advanced_analytics.sql"
+    q06 = split_sql_queries(sql_path)[5]
+
+    with db_engine.connect() as conn:
+        cur = conn.connection.cursor()
+        cur.execute(q06)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        df = pd.DataFrame(rows, columns=cols)
+
+        assert df["video_count"].sum() == 16305
+        assert round(df["percentage_share"].astype(float).sum(), 1) == 100.0
+
+        bracket_map = df.set_index("latency_bracket")["video_count"].to_dict()
+        assert bracket_map["Day 0 (Same Day)"] == 420
+        assert bracket_map["Day 1 - 2 (Rapid)"] == 15300
+        # Combined <= 2 days
+        within_2d = bracket_map["Day 0 (Same Day)"] + bracket_map["Day 1 - 2 (Rapid)"]
+        assert within_2d == 15720
+        assert round(within_2d * 100.0 / 16305, 2) == 96.41
+
+
+@pytest.mark.skipif(not is_live_mysql, reason="Requires live MySQL server")
+def test_trending_persistence_denominators(db_engine):
+    """Verify Query 07 distinct trending dates sum to 16,305 unique videos and 73.55% on <=2 dates."""
+    sql_path = config.BASE_DIR / "sql" / "advanced_analytics.sql"
+    q07 = split_sql_queries(sql_path)[6]
+
+    with db_engine.connect() as conn:
+        cur = conn.connection.cursor()
+        cur.execute(q07)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        df = pd.DataFrame(rows, columns=cols)
+
+        assert df["unique_videos"].sum() == 16305
+        bracket_map = df.set_index("persistence_bracket")["unique_videos"].to_dict()
+        assert bracket_map["1 Day (Single Appearance)"] == 7824
+        assert bracket_map["2 Days"] == 4168
+        # Combined 1-2 dates
+        one_two_days = bracket_map["1 Day (Single Appearance)"] + bracket_map["2 Days"]
+        assert one_two_days == 11992
+        assert round(one_two_days * 100.0 / 16305, 2) == 73.55
+
+
+@pytest.mark.skipif(not is_live_mysql, reason="Requires live MySQL server")
+def test_comment_policy_denominators(db_engine):
+    """Verify Query 19 evaluates video-level status summing to 16,305 unique videos."""
+    sql_path = config.BASE_DIR / "sql" / "business_queries.sql"
+    q19 = split_sql_queries(sql_path)[4]
+
+    with db_engine.connect() as conn:
+        cur = conn.connection.cursor()
+        cur.execute(q19)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        df = pd.DataFrame(rows, columns=cols)
+
+        assert df["video_count"].sum() == 16305
+        status_map = df.set_index("comments_status")["video_count"].to_dict()
+        assert status_map["Comments Enabled"] == 15732
+        assert status_map["Comments Disabled"] == 573
+        assert round(status_map["Comments Enabled"] * 100.0 / 16305, 2) == 96.49
+        assert round(status_map["Comments Disabled"] * 100.0 / 16305, 2) == 3.51
+
+
+@pytest.mark.skipif(not is_live_mysql, reason="Requires live MySQL server")
+def test_publishing_timing_denominators(db_engine):
+    """Verify Query 20 timing window distribution sums to 16,305 unique videos."""
+    sql_path = config.BASE_DIR / "sql" / "business_queries.sql"
+    q20 = split_sql_queries(sql_path)[5]
+
+    with db_engine.connect() as conn:
+        cur = conn.connection.cursor()
+        cur.execute(q20)
+        rows = cur.fetchall()
+        cols = [d[0] for d in cur.description]
+        df = pd.DataFrame(rows, columns=cols)
+
+        assert df["unique_videos"].sum() == 16305
+        window_map = df.set_index("time_window")["unique_videos"].to_dict()
+        assert window_map["Evening Window (12-16 UTC / 17:30-22:29 IST)"] == 5152
+        assert window_map["Morning Window (04-08 UTC / 09:30-14:29 IST)"] == 4473
+        assert window_map["Off-Peak / Night Window"] == 6680
+

@@ -61,7 +61,7 @@ WHERE unique_videos > 100;
 ```
 
 #### Strategic Advantages of CTEs:
-1. **Top-to-Bottom Readability:** Follows logical data transformation order (extract $\rightarrow$ aggregate $\rightarrow$ filter).
+1. **Top-to-Bottom Readability:** Follows logical data transformation order (extract $ightarrow$ aggregate $ightarrow$ filter).
 2. **Reusability:** A single CTE can be referenced multiple times in the main query (e.g., self-joins or comparisons against overall averages).
 3. **Multi-Stage Pipelines:** Enables chaining multiple CTEs (`WITH cte1 AS (...), cte2 AS (...)`) to modularize complex business logic.
 
@@ -111,20 +111,21 @@ SELECT video_id, category_id, COUNT(*) OVER(PARTITION BY category_id) AS total_i
 In longitudinal trending datasets, a video trending for 5 consecutive days generates **5 separate snapshot rows**. Each row records cumulative view counts on that calendar day (e.g., Day 1: 100K, Day 2: 150K, Day 3: 180K, Day 4: 200K, Day 5: 210K).
 
 - **The Pitfall:** If an analyst runs `SUM(views)` across all rows, the result is:
-  $$100K + 150K + 180K + 200K + 210K = 840,000 \text{ views}$$
+  $$100K + 150K + 180K + 200K + 210K = 840,000 	ext{ views}$$
   This inflates the video's actual reach by **4x**!
 - **The Solution:** The true observed peak views for that video is:
-  $$\text{MAX}(\text{views}) = 210,000 \text{ views}$$
+  $$	ext{MAX}(	ext{views}) = 210,000 	ext{ views}$$
 - **MediaPulse Analytical Rule:** Always rollup snapshots to the unique `video_id` grain using `MAX(views)` before performing category or channel-level view aggregations.
 
 ---
 
 ### 7. How MySQL Indexes Improve Query Execution Plans
 Without indexes, MySQL must perform a **Full Table Scan (`ALL`)**, reading every single page from disk into memory to evaluate a `WHERE` clause.
-- **B-Tree Structure:** A B-tree index stores indexed column values in a balanced sorted tree structure, allowing $O(\log N)$ search latency.
-- **Index Lookups in MediaPulse:**
+- **B-Tree Structure:** A B-tree index stores indexed column values in a balanced sorted tree structure, reducing the search space significantly compared to reading every data page sequentially.
+- **Index Equality Lookups (`eq_ref` / `ref`):**
+  - An `eq_ref` join lookup matches a single row from a unique or primary index, avoiding full-table scans. However, it should not be described as $O(1)$ constant time; actual cost involves B-tree page traversals based on tree depth and buffer pool cache hits.
   - `idx_snapshots_trending_date` on `trending_snapshots(trending_date)`: Allows isolating the 128 snapshots for a given date in **3 milliseconds** instead of scanning 32,265 rows.
-  - `idx_snapshots_views` on `trending_snapshots(views DESC)`: Allows MySQL to satisfy `ORDER BY views DESC LIMIT 10` by reading the top 10 leaf nodes directly, completely eliminating expensive in-memory **filesort** operations.
+  - `idx_snapshots_views` on `trending_snapshots(views DESC)`: Allows MySQL to satisfy `ORDER BY views DESC LIMIT 10` by reading the pre-sorted index leaf nodes directly, completely eliminating expensive in-memory **filesort** operations.
 
 ---
 
@@ -133,7 +134,7 @@ Without indexes, MySQL must perform a **Full Table Scan (`ALL`)**, reading every
 ### Q1: In the MediaPulse project, why did you create a surrogate primary key for `channels` instead of using `channel_title` as the natural key?
 **Answer:**  
 In the raw Kaggle YouTube dataset, YouTube's authoritative 24-character alphanumeric Channel ID (e.g., `UC...`) was absent, leaving only `channel_title` strings. While natural keys are conceptually simple, string keys have significant drawbacks:
-1. `channel_title VARCHAR(255)` consumes 255 bytes per foreign key reference in child tables (`videos`), creating bloated secondary indexes. An `INT AUTO_INCREMENT` surrogate key consumes only 4 bytes, dramatically reducing memory and disk footprint.
+1. `channel_title VARCHAR(255)` consumes up to 255 bytes per foreign key reference in child tables (`videos`), creating bloated secondary indexes. An `INT AUTO_INCREMENT` surrogate key consumes only 4 bytes, dramatically reducing memory and disk footprint.
 2. Channel titles can theoretically be renamed by publishers; using an immutable surrogate key insulates child records from cascading update anomalies.
 3. Case-sensitivity nuances (e.g., `'Zee TV'` vs. `'Zee Tv'`) required binary collation (`utf8mb4_bin`) to ensure unique identity without dropping distinct publishers.
 
@@ -195,7 +196,7 @@ For odd count $N$, `FLOOR` and `CEIL` resolve to the exact middle row $((N+1)/2)
 - `COALESCE(val1, val2, ...)` returns the first non-null argument in the list. It is commonly used to provide default fallbacks for missing values (e.g., `COALESCE(description, 'No description provided')`).
 - `NULLIF(expr1, expr2)` returns `NULL` if `expr1 = expr2`; otherwise it returns `expr1`.
 In MediaPulse, `NULLIF()` was applied to prevent **division-by-zero errors** during rate calculations:
-$$\text{ROUND}((\text{likes} + \text{comments}) * 100.0 / \text{NULLIF}(\text{views}, 0), 4)$$
+$$	ext{ROUND}((	ext{likes} + 	ext{comments}) * 100.0 / 	ext{NULLIF}(	ext{views}, 0), 4)$$
 If a video has 0 views, `NULLIF(views, 0)` returns `NULL`, which evaluates the entire division to `NULL` rather than crashing the query with a fatal runtime error.
 
 ---
@@ -250,12 +251,11 @@ FROM monthly_metrics;
 
 ---
 
-### Q7: What is the purpose of specifying a window frame (`ROWS BETWEEN 6 PRECEDING AND CURRENT ROW`)?
+### Q7: What is the difference between a row-based frame (`ROWS BETWEEN`) and a calendar-based frame (`RANGE BETWEEN`), and which was used in Query 12?
 **Answer:**  
-A window frame restricts the calculation scope of aggregate window functions to a sliding subset of rows relative to the current row.
-In Query 12:
-$$\text{AVG}(\text{daily\_snapshots}) \text{ OVER}(\text{ORDER BY trending\_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW})$$
-This computes a true 7-day trailing rolling moving average (the current day plus the 6 days prior). Without the frame specification, an aggregate like `AVG()` with `ORDER BY` defaults to `RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`, which is a cumulative running average, not a rolling 7-day window.
+- `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` defines a frame based on a physical count of rows (the current row plus the 6 rows before it in sorted order).
+- `RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW` defines a logical calendar frame based on values (dates within the last 6 calendar days).
+In Query 12, the historical dataset contains 205 distinct observed snapshot dates across a 213-calendar-day span, meaning 8 calendar dates are unobserved due to scraping collection outages. Because the time series has date gaps, `ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` functions strictly as a **7-observation rolling window** (smoothing the current observed date and the 6 preceding observed dates), rather than an uninterrupted 7-calendar-day window.
 
 ---
 

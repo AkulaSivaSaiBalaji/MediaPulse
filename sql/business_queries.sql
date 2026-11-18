@@ -146,10 +146,12 @@ GROUP BY diversification_tier
 ORDER BY MIN(genres_published) ASC;
 
 -- ------------------------------------------------------------------------------
--- Query 19: Audience Interaction Policy & Comment Disabling Impact
+-- Query 19: Audience Interaction Policy & Comment Status (Observed Associations)
 -- Concept: CTE, Boolean Flags, Aggregate Comparison, Safe NULL Division
--- Business Purpose: Analyzes the business impact of restricting audience comments,
---                   evaluating whether disabled comments suppress overall engagement.
+-- Analytical Note: Evaluates video-level status (v.comments_disabled at publication).
+--                  Differences reflect observational associations, not algorithmic causation;
+--                  confounding factors include genre policies, topic sensitivity, and reverse
+--                  causation (creators disabling comments in response to negative reception).
 -- ------------------------------------------------------------------------------
 WITH video_policy AS (
     SELECT
@@ -182,19 +184,21 @@ FROM video_policy
 GROUP BY comments_status;
 
 -- ------------------------------------------------------------------------------
--- Query 20: Publishing Timing ROI (Prime-Time Evening Window vs Morning vs Off-Peak)
+-- Query 20: Publishing Timing Window Distribution (Historical Associations)
 -- Concept: CTE, CASE WHEN Temporal Framing, Mean Latency and Engagement
--- Business Purpose: Provides scheduling recommendations for digital media executives,
---                   comparing prime-time upload slots against off-peak periods.
+-- Analytical Note: Compares historical performance across upload windows in UTC/IST.
+--                  Differences represent observational associations within the 2017-2018
+--                  sample; they do not establish that changing upload timing will causally
+--                  alter viewer demand or algorithmic distribution.
 -- ------------------------------------------------------------------------------
 WITH video_timing AS (
     SELECT
         v.video_id,
         v.publish_hour,
         CASE
-            WHEN v.publish_hour BETWEEN 12 AND 16 THEN 'Prime-Time Window (12-16 UTC / 17:30-21:30 IST)'
-            WHEN v.publish_hour BETWEEN 4 AND 8 THEN 'Morning Window (04-08 UTC / 09:30-13:30 IST)'
-            ELSE 'Off-Peak / Late Night'
+            WHEN v.publish_hour BETWEEN 12 AND 16 THEN 'Evening Window (12-16 UTC / 17:30-22:29 IST)'
+            WHEN v.publish_hour BETWEEN 4 AND 8 THEN 'Morning Window (04-08 UTC / 09:30-14:29 IST)'
+            ELSE 'Off-Peak / Night Window'
         END AS time_window,
         MAX(s.views) AS peak_views,
         DATEDIFF(MIN(s.trending_date), v.publish_date) AS days_to_first_trend,
