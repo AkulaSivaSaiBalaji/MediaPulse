@@ -44,6 +44,7 @@ env/
 .pytest_cache/
 .coverage
 htmlcov/
+.matplotlib_cache/
 
 # IDE files
 .vscode/
