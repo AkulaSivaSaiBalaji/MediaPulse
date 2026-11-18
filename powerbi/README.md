@@ -11,6 +11,7 @@ This directory contains the production-ready Microsoft Power BI reporting assets
 ```text
 powerbi/
 ├── README.md                                    # Workspace orientation and deployment guide
+├── build_powerbi_project.py                     # Deterministic PBIP project generator
 ├── MediaPulse_Analytics.pbip                     # Root Power BI Project file (Open with Power BI Desktop)
 ├── MediaPulse_Analytics.Report/                 # Power BI Report Project definition
 │   ├── definition.pbir                         # Semantic model pointer

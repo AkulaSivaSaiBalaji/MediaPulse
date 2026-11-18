@@ -362,3 +362,63 @@ def test_date_filtered_peak_views_scenarios(db_engine):
         assert s8[0] == 0
         assert s8[1] is None  # Matches DAX BLANK() behavior
 
+
+def test_semantic_model_tom_schema_validity():
+    """Verify that model.bim is valid JSON and contains NO unsupported properties like isNameInferred.
+
+    Power BI Desktop Desktop 2.159.883.0 (October 2026) rejects column definitions containing
+    isNameInferred on partitioned/M data tables.
+    """
+    import json
+    model_bim_path = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel" / "model.bim"
+    assert model_bim_path.exists(), "model.bim file missing"
+
+    with open(model_bim_path, "r", encoding="utf-8") as f:
+        bim = json.load(f)
+
+    # Recursive check for isNameInferred
+    def find_prop(obj, prop_name):
+        found = []
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k == prop_name:
+                    found.append(k)
+                found.extend(find_prop(v, prop_name))
+        elif isinstance(obj, list):
+            for item in obj:
+                found.extend(find_prop(item, prop_name))
+        return found
+
+    assert len(find_prop(bim, "isNameInferred")) == 0, "model.bim contains unsupported isNameInferred property"
+
+    # Verify tables and 27 measures
+    tables = {t["name"]: t for t in bim["model"]["tables"]}
+    expected_tables = ["_Measures", "DimCategory", "DimChannel", "DimVideo", "FactTrendingSnapshot", "DimDate"]
+    for t_name in expected_tables:
+        assert t_name in tables, f"Missing table {t_name}"
+
+    measures = tables["_Measures"].get("measures", [])
+    assert len(measures) == 27, f"Expected 27 DAX measures, got {len(measures)}"
+
+    # Verify column properties strictly conform to allowed TOM properties
+    allowed_column_props = {
+        "name", "dataType", "sourceColumn", "isKey", "isHidden",
+        "sortByColumn", "summarizeBy", "formatString", "description"
+    }
+    for t_name, t in tables.items():
+        for col in t.get("columns", []):
+            unsupported = set(col.keys()) - allowed_column_props
+            assert not unsupported, f"Table {t_name} column {col.get('name')} has unsupported properties: {unsupported}"
+
+    # Verify relationships
+    assert len(bim["model"].get("relationships", [])) == 5
+
+
+def test_project_generator_has_no_unsupported_properties():
+    """Verify that the generator script powerbi/build_powerbi_project.py does not recreate isNameInferred."""
+    gen_script = config.BASE_DIR / "powerbi" / "build_powerbi_project.py"
+    assert gen_script.exists(), "powerbi/build_powerbi_project.py missing"
+    content = gen_script.read_text(encoding="utf-8")
+    assert "isNameInferred" not in content, "Generator script still contains isNameInferred"
+
+

@@ -17,7 +17,6 @@
             "name": "Measure_ID",
             "dataType": "int64",
             "isHidden": true,
-            "isNameInferred": false,
             "sourceColumn": "Measure_ID"
           }
         ],
