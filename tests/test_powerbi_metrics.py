@@ -422,3 +422,132 @@ def test_project_generator_has_no_unsupported_properties():
     assert "isNameInferred" not in content, "Generator script still contains isNameInferred"
 
 
+def test_modern_pbir_report_structure():
+    """Verify that the Power BI report uses modern modular PBIR format (Power BI Desktop 2.159.883.0+).
+
+    Validates:
+    - definition.pbir has version 4.0 and datasetReference.byPath.
+    - Legacy root report.json does NOT exist (mutually exclusive with PBIR).
+    - definition/version.json exists with version 2.0.0.
+    - definition/report.json exists with valid theme configuration.
+    - definition/pages/pages.json exists with 3 ordered pages.
+    - All 3 page directories exist with valid page.json (1280x720, FitToPage).
+    """
+    import json
+    report_dir = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.Report"
+    assert report_dir.exists(), "MediaPulse_Analytics.Report directory missing"
+
+    # 1. definition.pbir
+    pbir_path = report_dir / "definition.pbir"
+    assert pbir_path.exists(), "definition.pbir missing"
+    with open(pbir_path, "r", encoding="utf-8") as f:
+        pbir = json.load(f)
+    assert pbir.get("version") == "4.0", f"Expected version 4.0, got {pbir.get('version')}"
+    assert pbir.get("datasetReference", {}).get("byPath", {}).get("path") == "../MediaPulse_Analytics.SemanticModel"
+
+    # 2. Legacy root report.json must NOT exist
+    legacy_root_report = report_dir / "report.json"
+    assert not legacy_root_report.exists(), "Legacy root report.json found; conflicts with modern PBIR format"
+
+    # 3. definition/version.json
+    version_path = report_dir / "definition" / "version.json"
+    assert version_path.exists(), "definition/version.json missing"
+    with open(version_path, "r", encoding="utf-8") as f:
+        ver = json.load(f)
+    assert ver.get("version") == "2.0.0"
+
+    # 4. definition/report.json
+    report_json_path = report_dir / "definition" / "report.json"
+    assert report_json_path.exists(), "definition/report.json missing"
+    with open(report_json_path, "r", encoding="utf-8") as f:
+        rep = json.load(f)
+    assert "themeCollection" in rep
+
+    # 5. definition/pages/pages.json
+    pages_json_path = report_dir / "definition" / "pages" / "pages.json"
+    assert pages_json_path.exists(), "definition/pages/pages.json missing"
+    with open(pages_json_path, "r", encoding="utf-8") as f:
+        pages_meta = json.load(f)
+    expected_page_order = ["ExecutiveOverview", "ContentEngagementAnalytics", "ChannelPerformance"]
+    assert pages_meta.get("pageOrder") == expected_page_order
+    assert pages_meta.get("activePageName") == "ExecutiveOverview"
+
+    # 6. Page definitions
+    expected_display_names = {
+        "ExecutiveOverview": "Executive Overview",
+        "ContentEngagementAnalytics": "Content & Engagement Analytics",
+        "ChannelPerformance": "Channel Performance",
+    }
+    for page_name, exp_disp in expected_display_names.items():
+        page_json_path = report_dir / "definition" / "pages" / page_name / "page.json"
+        assert page_json_path.exists(), f"Missing page.json for {page_name}"
+        with open(page_json_path, "r", encoding="utf-8") as f:
+            p_data = json.load(f)
+        assert p_data.get("name") == page_name
+        assert p_data.get("displayName") == exp_disp
+        assert p_data.get("width") == 1280
+        assert p_data.get("height") == 720
+        assert p_data.get("displayOption") == "FitToPage"
+
+
+def test_modern_pbir_visual_definitions_and_field_bindings():
+    """Verify that all 24 visual containers across the 3 pages are valid native PBIR visual items."""
+    import json
+    report_dir = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.Report"
+    pages_dir = report_dir / "definition" / "pages"
+
+    expected_page_visual_counts = {
+        "ExecutiveOverview": 9,
+        "ContentEngagementAnalytics": 8,
+        "ChannelPerformance": 7,
+    }
+
+    total_visual_count = 0
+    valid_visual_types = {"card", "lineChart", "clusteredBarChart", "clusteredColumnChart", "scatterChart", "tableEx"}
+
+    for page_name, expected_count in expected_page_visual_counts.items():
+        vis_parent_dir = pages_dir / page_name / "visuals"
+        assert vis_parent_dir.exists(), f"visuals directory missing for {page_name}"
+
+        visual_dirs = [d for d in vis_parent_dir.iterdir() if d.is_dir()]
+        assert len(visual_dirs) == expected_count, (
+            f"Page {page_name} visual count {len(visual_dirs)} != expected {expected_count}"
+        )
+        total_visual_count += len(visual_dirs)
+
+        for v_dir in visual_dirs:
+            v_json_path = v_dir / "visual.json"
+            assert v_json_path.exists(), f"visual.json missing in {v_dir}"
+            with open(v_json_path, "r", encoding="utf-8") as f:
+                v_data = json.load(f)
+
+            # Validate container properties
+            assert v_data.get("name") == v_dir.name
+            pos = v_data.get("position", {})
+            for key in ["x", "y", "z", "width", "height", "tabOrder"]:
+                assert key in pos, f"Visual {v_dir.name} position missing {key}"
+                assert isinstance(pos[key], (int, float))
+
+            # Validate visual definition
+            visual = v_data.get("visual", {})
+            v_type = visual.get("visualType")
+            assert v_type in valid_visual_types, f"Visual {v_dir.name} has unknown visualType: {v_type}"
+
+            # Validate query projection bindings
+            query_state = visual.get("query", {}).get("queryState", {})
+            assert query_state, f"Visual {v_dir.name} has empty queryState"
+            for role, role_def in query_state.items():
+                projections = role_def.get("projections", [])
+                assert len(projections) > 0, f"Role {role} in {v_dir.name} has no projections"
+                for proj in projections:
+                    assert "queryRef" in proj, f"Projection in {v_dir.name} missing queryRef"
+                    assert "field" in proj, f"Projection in {v_dir.name} missing field definition"
+                    field_obj = proj["field"]
+                    assert "Measure" in field_obj or "Column" in field_obj, (
+                        f"Projection in {v_dir.name} field is neither Measure nor Column"
+                    )
+
+    assert total_visual_count == 24, f"Total visuals across report {total_visual_count} != 24"
+
+
+

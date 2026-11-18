@@ -1,0 +1,114 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "table_channel_scorecard",
+  "position": {
+    "x": 20,
+    "y": 450,
+    "z": 1006,
+    "width": 1240,
+    "height": 250,
+    "tabOrder": 7
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimChannel"
+                    }
+                  },
+                  "Property": "channel_title"
+                }
+              },
+              "queryRef": "DimChannel.channel_title"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Channel Rank by Unique Videos"
+                }
+              },
+              "queryRef": "_Measures.Channel Rank by Unique Videos"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Unique Videos"
+                }
+              },
+              "queryRef": "_Measures.Total Unique Videos"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Sum of Per-Video Peak Views"
+                }
+              },
+              "queryRef": "_Measures.Sum of Per-Video Peak Views"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Average Per-Video Peak Views"
+                }
+              },
+              "queryRef": "_Measures.Average Per-Video Peak Views"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Median Video-Level Engagement Rate"
+                }
+              },
+              "queryRef": "_Measures.Median Video-Level Engagement Rate"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Average Distinct Trending Dates per Video"
+                }
+              },
+              "queryRef": "_Measures.Average Distinct Trending Dates per Video"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

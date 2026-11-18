@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "bar_top_channels_videos",
+  "position": {
+    "x": 20,
+    "y": 180,
+    "z": 1004,
+    "width": 600,
+    "height": 250,
+    "tabOrder": 5
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimChannel"
+                    }
+                  },
+                  "Property": "channel_title"
+                }
+              },
+              "queryRef": "DimChannel.channel_title"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Unique Videos"
+                }
+              },
+              "queryRef": "_Measures.Total Unique Videos"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

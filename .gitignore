@@ -51,6 +51,8 @@ htmlcov/
 .idea/
 *.swp
 *.swo
+powerbi_backup_pre_repair/
+*backup*/
 
 # Datasets - Ignore large raw files, preserve directory with .gitkeep
 data/raw/*

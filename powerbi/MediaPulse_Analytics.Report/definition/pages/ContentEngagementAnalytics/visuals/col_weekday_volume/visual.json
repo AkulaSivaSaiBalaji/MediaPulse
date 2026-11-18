@@ -1,0 +1,53 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "col_weekday_volume",
+  "position": {
+    "x": 20,
+    "y": 450,
+    "z": 1006,
+    "width": 600,
+    "height": 250,
+    "tabOrder": 7
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimDate"
+                    }
+                  },
+                  "Property": "weekday_name"
+                }
+              },
+              "queryRef": "DimDate.weekday_name"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Unique Videos"
+                }
+              },
+              "queryRef": "_Measures.Total Unique Videos"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

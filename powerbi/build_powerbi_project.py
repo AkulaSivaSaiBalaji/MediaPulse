@@ -29,6 +29,7 @@ pbip_payload = {
 
 # 2. MediaPulse_Analytics.Report/definition.pbir
 pbir_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/1.0.0/schema.json",
     "version": "4.0",
     "datasetReference": {
         "byPath": {
@@ -589,368 +590,368 @@ model_bim = {
 
 (MODEL_DIR / "model.bim").write_text(json.dumps(model_bim, indent=2), encoding="utf-8")
 
-# 8. Assemble report.json for MediaPulse_Analytics.Report
-report_json = {
-    "config": json.dumps({
-        "version": "5.50",
-        "themeCollection": {
-            "baseTheme": {
-                "name": "CY24SU02",
-                "version": "5.50",
-                "type": 2
+# 8. Assemble native modular PBIR report definition (Fabric / Power BI 2.159.883.0+)
+DEFINITION_DIR = REPORT_DIR / "definition"
+PAGES_DIR = DEFINITION_DIR / "pages"
+DEFINITION_DIR.mkdir(parents=True, exist_ok=True)
+PAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+def make_measure_field(table_name, measure_name):
+    return {
+        "field": {
+            "Measure": {
+                "Expression": {
+                    "SourceRef": {
+                        "Entity": table_name
+                    }
+                },
+                "Property": measure_name
             }
         },
-        "activeSectionIndex": 0,
-        "defaultDrillFilterOtherVisuals": True
-    }),
-    "layoutOptimization": 0,
-    "sections": [
-        # Page 1: Executive Overview
-        {
-            "name": "ExecutiveOverview",
-            "displayName": "Executive Overview",
-            "filters": "[]",
-            "ordinal": 0,
-            "width": 1280,
-            "height": 720,
-            "visualContainers": [
-                # Card 1: Unique Videos
-                {
-                    "x": 20, "y": 70, "z": 1, "width": 230, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_videos",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Unique Videos"}]},
-                            "prototypeQuery": {"Select": [{"Measure": {"Property": "Total Unique Videos"}, "Name": "_Measures.Total Unique Videos"}]}
-                        }
-                    })
-                },
-                # Card 2: Snapshots
-                {
-                    "x": 270, "y": 70, "z": 2, "width": 230, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_snapshots",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Trending Snapshots"}]},
-                            "prototypeQuery": {"Select": [{"Measure": {"Property": "Total Trending Snapshots"}, "Name": "_Measures.Total Trending Snapshots"}]}
-                        }
-                    })
-                },
-                # Card 3: Channels
-                {
-                    "x": 520, "y": 70, "z": 3, "width": 230, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_channels",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Channels"}]},
-                            "prototypeQuery": {"Select": [{"Measure": {"Property": "Total Channels"}, "Name": "_Measures.Total Channels"}]}
-                        }
-                    })
-                },
-                # Card 4: Categories
-                {
-                    "x": 770, "y": 70, "z": 4, "width": 230, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_categories",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Categories"}]},
-                            "prototypeQuery": {"Select": [{"Measure": {"Property": "Total Categories"}, "Name": "_Measures.Total Categories"}]}
-                        }
-                    })
-                },
-                # Card 5: Observed Dates
-                {
-                    "x": 1020, "y": 70, "z": 5, "width": 240, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_dates",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Observed Trending Dates"}]},
-                            "prototypeQuery": {"Select": [{"Measure": {"Property": "Observed Trending Dates"}, "Name": "_Measures.Observed Trending Dates"}]}
-                        }
-                    })
-                },
-                # Visual 1: Daily Trending Snapshot Activity (Line Chart)
-                {
-                    "x": 20, "y": 180, "z": 6, "width": 780, "height": 260,
-                    "config": json.dumps({
-                        "name": "line_daily_trending",
-                        "singleVisual": {
-                            "visualType": "lineChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimDate.full_date"}],
-                                "Y": [
-                                    {"queryRef": "_Measures.Daily Trending Snapshot Count"},
-                                    {"queryRef": "_Measures.Rolling 7-Observed-Date Snapshot Average"}
-                                ]
-                            }
-                        }
-                    })
-                },
-                # Visual 2: Top 10 Categories by Unique Videos (Bar Chart)
-                {
-                    "x": 820, "y": 180, "z": 7, "width": 440, "height": 260,
-                    "config": json.dumps({
-                        "name": "bar_top_categories",
-                        "singleVisual": {
-                            "visualType": "clusteredBarChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimCategory.category_title"}],
-                                "Y": [{"queryRef": "_Measures.Total Unique Videos"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 3: Monthly Observed Trending Activity (Column Chart)
-                {
-                    "x": 20, "y": 460, "z": 8, "width": 780, "height": 240,
-                    "config": json.dumps({
-                        "name": "col_monthly_trending",
-                        "singleVisual": {
-                            "visualType": "clusteredColumnChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimDate.year_month_label"}],
-                                "Y": [{"queryRef": "_Measures.Daily Trending Snapshot Count"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 4: Coverage Callout Card
-                {
-                    "x": 820, "y": 460, "z": 9, "width": 440, "height": 240,
-                    "config": json.dumps({
-                        "name": "textbox_coverage",
-                        "singleVisual": {
-                            "visualType": "textbox"
-                        }
-                    })
-                }
-            ]
-        },
-        # Page 2: Content & Engagement Analytics
-        {
-            "name": "ContentEngagementAnalytics",
-            "displayName": "Content & Engagement Analytics",
-            "filters": "[]",
-            "ordinal": 1,
-            "width": 1280,
-            "height": 720,
-            "visualContainers": [
-                # Card 1: Median ER
-                {
-                    "x": 20, "y": 70, "z": 1, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_median_er",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Median Video-Level Engagement Rate"}]}
-                        }
-                    })
-                },
-                # Card 2: Average Peak Views
-                {
-                    "x": 330, "y": 70, "z": 2, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_avg_peak_views",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Average Per-Video Peak Views"}]}
-                        }
-                    })
-                },
-                # Card 3: Average Latency
-                {
-                    "x": 640, "y": 70, "z": 3, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_avg_latency",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Average Days to First Observed Trending"}]}
-                        }
-                    })
-                },
-                # Card 4: % Within 2 Days
-                {
-                    "x": 950, "y": 70, "z": 4, "width": 310, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_pct_le2",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Percentage First Observed Trending Within 2 Days"}]}
-                        }
-                    })
-                },
-                # Visual 1: Category vs Median Engagement Rate
-                {
-                    "x": 20, "y": 180, "z": 5, "width": 600, "height": 250,
-                    "config": json.dumps({
-                        "name": "bar_category_er",
-                        "singleVisual": {
-                            "visualType": "clusteredBarChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimCategory.category_title"}],
-                                "Y": [{"queryRef": "_Measures.Median Video-Level Engagement Rate"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 2: Reach vs Engagement Scatter Plot
-                {
-                    "x": 640, "y": 180, "z": 6, "width": 620, "height": 250,
-                    "config": json.dumps({
-                        "name": "scatter_reach_er",
-                        "singleVisual": {
-                            "visualType": "scatterChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimCategory.category_title"}],
-                                "X": [{"queryRef": "_Measures.Median Per-Video Peak Views"}],
-                                "Y": [{"queryRef": "_Measures.Median Video-Level Engagement Rate"}],
-                                "Size": [{"queryRef": "_Measures.Total Unique Videos"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 3: Publication Weekday Performance
-                {
-                    "x": 20, "y": 450, "z": 7, "width": 600, "height": 250,
-                    "config": json.dumps({
-                        "name": "col_weekday_volume",
-                        "singleVisual": {
-                            "visualType": "clusteredColumnChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimDate.weekday_name"}],
-                                "Y": [{"queryRef": "_Measures.Total Unique Videos"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 4: Publication Hour Distribution
-                {
-                    "x": 640, "y": 450, "z": 8, "width": 620, "height": 250,
-                    "config": json.dumps({
-                        "name": "col_hour_volume",
-                        "singleVisual": {
-                            "visualType": "clusteredColumnChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimVideo.publish_hour"}],
-                                "Y": [{"queryRef": "_Measures.Total Unique Videos"}]
-                            }
-                        }
-                    })
-                }
-            ]
-        },
-        # Page 3: Channel Performance
-        {
-            "name": "ChannelPerformance",
-            "displayName": "Channel Performance",
-            "filters": "[]",
-            "ordinal": 2,
-            "width": 1280,
-            "height": 720,
-            "visualContainers": [
-                # Card 1: Total Channels
-                {
-                    "x": 20, "y": 70, "z": 1, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_ch_total",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Channels"}]}
-                        }
-                    })
-                },
-                # Card 2: Selected Channel Videos
-                {
-                    "x": 330, "y": 70, "z": 2, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_ch_videos",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Total Unique Videos"}]}
-                        }
-                    })
-                },
-                # Card 3: Selected Channel Peak Reach
-                {
-                    "x": 640, "y": 70, "z": 3, "width": 290, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_ch_reach",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Sum of Per-Video Peak Views"}]}
-                        }
-                    })
-                },
-                # Card 4: Selected Channel Median ER
-                {
-                    "x": 950, "y": 70, "z": 4, "width": 310, "height": 90,
-                    "config": json.dumps({
-                        "name": "card_ch_er",
-                        "singleVisual": {
-                            "visualType": "card",
-                            "projections": {"Fields": [{"queryRef": "_Measures.Median Video-Level Engagement Rate"}]}
-                        }
-                    })
-                },
-                # Visual 1: Top 15 Channels by Unique Videos
-                {
-                    "x": 20, "y": 180, "z": 5, "width": 600, "height": 250,
-                    "config": json.dumps({
-                        "name": "bar_top_channels_videos",
-                        "singleVisual": {
-                            "visualType": "clusteredBarChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimChannel.channel_title"}],
-                                "Y": [{"queryRef": "_Measures.Total Unique Videos"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 2: Top Channels by Cumulative Peak Views
-                {
-                    "x": 640, "y": 180, "z": 6, "width": 620, "height": 250,
-                    "config": json.dumps({
-                        "name": "bar_top_channels_reach",
-                        "singleVisual": {
-                            "visualType": "clusteredBarChart",
-                            "projections": {
-                                "Category": [{"queryRef": "DimChannel.channel_title"}],
-                                "Y": [{"queryRef": "_Measures.Sum of Per-Video Peak Views"}]
-                            }
-                        }
-                    })
-                },
-                # Visual 3: Channel Executive Scorecard Table
-                {
-                    "x": 20, "y": 450, "z": 7, "width": 1240, "height": 250,
-                    "config": json.dumps({
-                        "name": "table_channel_scorecard",
-                        "singleVisual": {
-                            "visualType": "tableEx",
-                            "projections": {
-                                "Values": [
-                                    {"queryRef": "DimChannel.channel_title"},
-                                    {"queryRef": "_Measures.Channel Rank by Unique Videos"},
-                                    {"queryRef": "_Measures.Total Unique Videos"},
-                                    {"queryRef": "_Measures.Sum of Per-Video Peak Views"},
-                                    {"queryRef": "_Measures.Average Per-Video Peak Views"},
-                                    {"queryRef": "_Measures.Median Video-Level Engagement Rate"},
-                                    {"queryRef": "_Measures.Average Distinct Trending Dates per Video"}
-                                ]
-                            }
-                        }
-                    })
-                }
-            ]
-        }
-    ]
-}
+        "queryRef": f"{table_name}.{measure_name}"
+    }
 
-(REPORT_DIR / "report.json").write_text(json.dumps(report_json, indent=2), encoding="utf-8")
+def make_column_field(table_name, column_name):
+    return {
+        "field": {
+            "Column": {
+                "Expression": {
+                    "SourceRef": {
+                        "Entity": table_name
+                    }
+                },
+                "Property": column_name
+            }
+        },
+        "queryRef": f"{table_name}.{column_name}"
+    }
+
+# 8.1 definition/version.json
+version_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json",
+    "version": "2.0.0"
+}
+(DEFINITION_DIR / "version.json").write_text(json.dumps(version_payload, indent=2), encoding="utf-8")
+
+# 8.2 definition/report.json
+report_settings_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.0.0/schema.json",
+    "themeCollection": {
+        "baseTheme": {
+            "name": "CY24SU02",
+            "reportVersionAtImport": "5.50",
+            "type": "SharedResources"
+        }
+    }
+}
+(DEFINITION_DIR / "report.json").write_text(json.dumps(report_settings_payload, indent=2), encoding="utf-8")
+
+# 8.3 definition/pages/pages.json
+pages_metadata = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json",
+    "pageOrder": [
+        "ExecutiveOverview",
+        "ContentEngagementAnalytics",
+        "ChannelPerformance"
+    ],
+    "activePageName": "ExecutiveOverview"
+}
+(PAGES_DIR / "pages.json").write_text(json.dumps(pages_metadata, indent=2), encoding="utf-8")
+
+# 8.4 Page 1: Executive Overview
+p1_dir = PAGES_DIR / "ExecutiveOverview"
+p1_vis_dir = p1_dir / "visuals"
+p1_vis_dir.mkdir(parents=True, exist_ok=True)
+
+p1_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json",
+    "name": "ExecutiveOverview",
+    "displayName": "Executive Overview",
+    "displayOption": "FitToPage",
+    "width": 1280,
+    "height": 720
+}
+(p1_dir / "page.json").write_text(json.dumps(p1_payload, indent=2), encoding="utf-8")
+
+p1_visuals = [
+    {
+        "name": "card_videos",
+        "position": {"x": 20, "y": 70, "z": 1000, "width": 230, "height": 90, "tabOrder": 1},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}}
+    },
+    {
+        "name": "card_snapshots",
+        "position": {"x": 270, "y": 70, "z": 1001, "width": 230, "height": 90, "tabOrder": 2},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Trending Snapshots")]}}
+    },
+    {
+        "name": "card_channels",
+        "position": {"x": 520, "y": 70, "z": 1002, "width": 230, "height": 90, "tabOrder": 3},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Channels")]}}
+    },
+    {
+        "name": "card_categories",
+        "position": {"x": 770, "y": 70, "z": 1003, "width": 230, "height": 90, "tabOrder": 4},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Categories")]}}
+    },
+    {
+        "name": "card_dates",
+        "position": {"x": 1020, "y": 70, "z": 1004, "width": 240, "height": 90, "tabOrder": 5},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Observed Trending Dates")]}}
+    },
+    {
+        "name": "line_daily_trending",
+        "position": {"x": 20, "y": 180, "z": 1005, "width": 780, "height": 260, "tabOrder": 6},
+        "visualType": "lineChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimDate", "full_date")]},
+            "Y": {"projections": [
+                make_measure_field("_Measures", "Daily Trending Snapshot Count"),
+                make_measure_field("_Measures", "Rolling 7-Observed-Date Snapshot Average")
+            ]}
+        }
+    },
+    {
+        "name": "bar_top_categories",
+        "position": {"x": 820, "y": 180, "z": 1006, "width": 440, "height": 260, "tabOrder": 7},
+        "visualType": "clusteredBarChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimCategory", "category_title")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}
+        }
+    },
+    {
+        "name": "col_monthly_trending",
+        "position": {"x": 20, "y": 460, "z": 1007, "width": 780, "height": 240, "tabOrder": 8},
+        "visualType": "clusteredColumnChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimDate", "year_month_label")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Daily Trending Snapshot Count")]}
+        }
+    },
+    {
+        "name": "card_coverage_audit",
+        "position": {"x": 820, "y": 460, "z": 1008, "width": 440, "height": 240, "tabOrder": 9},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Observed Trending Dates")]}}
+    }
+]
+
+for v in p1_visuals:
+    v_dir = p1_vis_dir / v["name"]
+    v_dir.mkdir(parents=True, exist_ok=True)
+    v_payload = {
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+        "name": v["name"],
+        "position": v["position"],
+        "visual": {
+            "visualType": v["visualType"],
+            "query": {
+                "queryState": v["queryState"]
+            }
+        }
+    }
+    (v_dir / "visual.json").write_text(json.dumps(v_payload, indent=2), encoding="utf-8")
+
+# 8.5 Page 2: Content & Engagement Analytics
+p2_dir = PAGES_DIR / "ContentEngagementAnalytics"
+p2_vis_dir = p2_dir / "visuals"
+p2_vis_dir.mkdir(parents=True, exist_ok=True)
+
+p2_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json",
+    "name": "ContentEngagementAnalytics",
+    "displayName": "Content & Engagement Analytics",
+    "displayOption": "FitToPage",
+    "width": 1280,
+    "height": 720
+}
+(p2_dir / "page.json").write_text(json.dumps(p2_payload, indent=2), encoding="utf-8")
+
+p2_visuals = [
+    {
+        "name": "card_median_er",
+        "position": {"x": 20, "y": 70, "z": 1000, "width": 290, "height": 90, "tabOrder": 1},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Median Video-Level Engagement Rate")]}}
+    },
+    {
+        "name": "card_avg_peak_views",
+        "position": {"x": 330, "y": 70, "z": 1001, "width": 290, "height": 90, "tabOrder": 2},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Average Per-Video Peak Views")]}}
+    },
+    {
+        "name": "card_avg_latency",
+        "position": {"x": 640, "y": 70, "z": 1002, "width": 290, "height": 90, "tabOrder": 3},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Average Days to First Observed Trending")]}}
+    },
+    {
+        "name": "card_pct_le2",
+        "position": {"x": 950, "y": 70, "z": 1003, "width": 310, "height": 90, "tabOrder": 4},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Percentage First Observed Trending Within 2 Days")]}}
+    },
+    {
+        "name": "bar_category_er",
+        "position": {"x": 20, "y": 180, "z": 1004, "width": 600, "height": 250, "tabOrder": 5},
+        "visualType": "clusteredBarChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimCategory", "category_title")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Median Video-Level Engagement Rate")]}
+        }
+    },
+    {
+        "name": "scatter_reach_er",
+        "position": {"x": 640, "y": 180, "z": 1005, "width": 620, "height": 250, "tabOrder": 6},
+        "visualType": "scatterChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimCategory", "category_title")]},
+            "X": {"projections": [make_measure_field("_Measures", "Median Per-Video Peak Views")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Median Video-Level Engagement Rate")]},
+            "Size": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}
+        }
+    },
+    {
+        "name": "col_weekday_volume",
+        "position": {"x": 20, "y": 450, "z": 1006, "width": 600, "height": 250, "tabOrder": 7},
+        "visualType": "clusteredColumnChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimDate", "weekday_name")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}
+        }
+    },
+    {
+        "name": "col_hour_volume",
+        "position": {"x": 640, "y": 450, "z": 1007, "width": 620, "height": 250, "tabOrder": 8},
+        "visualType": "clusteredColumnChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimVideo", "publish_hour")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}
+        }
+    }
+]
+
+for v in p2_visuals:
+    v_dir = p2_vis_dir / v["name"]
+    v_dir.mkdir(parents=True, exist_ok=True)
+    v_payload = {
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+        "name": v["name"],
+        "position": v["position"],
+        "visual": {
+            "visualType": v["visualType"],
+            "query": {
+                "queryState": v["queryState"]
+            }
+        }
+    }
+    (v_dir / "visual.json").write_text(json.dumps(v_payload, indent=2), encoding="utf-8")
+
+# 8.6 Page 3: Channel Performance
+p3_dir = PAGES_DIR / "ChannelPerformance"
+p3_vis_dir = p3_dir / "visuals"
+p3_vis_dir.mkdir(parents=True, exist_ok=True)
+
+p3_payload = {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json",
+    "name": "ChannelPerformance",
+    "displayName": "Channel Performance",
+    "displayOption": "FitToPage",
+    "width": 1280,
+    "height": 720
+}
+(p3_dir / "page.json").write_text(json.dumps(p3_payload, indent=2), encoding="utf-8")
+
+p3_visuals = [
+    {
+        "name": "card_ch_total",
+        "position": {"x": 20, "y": 70, "z": 1000, "width": 290, "height": 90, "tabOrder": 1},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Channels")]}}
+    },
+    {
+        "name": "card_ch_videos",
+        "position": {"x": 330, "y": 70, "z": 1001, "width": 290, "height": 90, "tabOrder": 2},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}}
+    },
+    {
+        "name": "card_ch_reach",
+        "position": {"x": 640, "y": 70, "z": 1002, "width": 290, "height": 90, "tabOrder": 3},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Sum of Per-Video Peak Views")]}}
+    },
+    {
+        "name": "card_ch_er",
+        "position": {"x": 950, "y": 70, "z": 1003, "width": 310, "height": 90, "tabOrder": 4},
+        "visualType": "card",
+        "queryState": {"Values": {"projections": [make_measure_field("_Measures", "Median Video-Level Engagement Rate")]}}
+    },
+    {
+        "name": "bar_top_channels_videos",
+        "position": {"x": 20, "y": 180, "z": 1004, "width": 600, "height": 250, "tabOrder": 5},
+        "visualType": "clusteredBarChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimChannel", "channel_title")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Total Unique Videos")]}
+        }
+    },
+    {
+        "name": "bar_top_channels_reach",
+        "position": {"x": 640, "y": 180, "z": 1005, "width": 620, "height": 250, "tabOrder": 6},
+        "visualType": "clusteredBarChart",
+        "queryState": {
+            "Category": {"projections": [make_column_field("DimChannel", "channel_title")]},
+            "Y": {"projections": [make_measure_field("_Measures", "Sum of Per-Video Peak Views")]}
+        }
+    },
+    {
+        "name": "table_channel_scorecard",
+        "position": {"x": 20, "y": 450, "z": 1006, "width": 1240, "height": 250, "tabOrder": 7},
+        "visualType": "tableEx",
+        "queryState": {
+            "Values": {
+                "projections": [
+                    make_column_field("DimChannel", "channel_title"),
+                    make_measure_field("_Measures", "Channel Rank by Unique Videos"),
+                    make_measure_field("_Measures", "Total Unique Videos"),
+                    make_measure_field("_Measures", "Sum of Per-Video Peak Views"),
+                    make_measure_field("_Measures", "Average Per-Video Peak Views"),
+                    make_measure_field("_Measures", "Median Video-Level Engagement Rate"),
+                    make_measure_field("_Measures", "Average Distinct Trending Dates per Video")
+                ]
+            }
+        }
+    }
+]
+
+for v in p3_visuals:
+    v_dir = p3_vis_dir / v["name"]
+    v_dir.mkdir(parents=True, exist_ok=True)
+    v_payload = {
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+        "name": v["name"],
+        "position": v["position"],
+        "visual": {
+            "visualType": v["visualType"],
+            "query": {
+                "queryState": v["queryState"]
+            }
+        }
+    }
+    (v_dir / "visual.json").write_text(json.dumps(v_payload, indent=2), encoding="utf-8")
+
+# 8.7 Remove old monolithic report.json if present at REPORT_DIR root
+old_report_json = REPORT_DIR / "report.json"
+if old_report_json.exists():
+    old_report_json.unlink()
+    print("Removed legacy monolithic report.json from root of .Report")
 
 print("Power BI Project (PBIP) generated successfully at:", PBI_DIR)

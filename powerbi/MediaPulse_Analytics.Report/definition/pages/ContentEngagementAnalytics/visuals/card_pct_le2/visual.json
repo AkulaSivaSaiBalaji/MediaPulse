@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "card_pct_le2",
+  "position": {
+    "x": 950,
+    "y": 70,
+    "z": 1003,
+    "width": 310,
+    "height": 90,
+    "tabOrder": 4
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percentage First Observed Trending Within 2 Days"
+                }
+              },
+              "queryRef": "_Measures.Percentage First Observed Trending Within 2 Days"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

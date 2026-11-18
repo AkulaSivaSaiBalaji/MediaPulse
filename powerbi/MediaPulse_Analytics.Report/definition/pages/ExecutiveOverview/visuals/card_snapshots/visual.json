@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "card_snapshots",
+  "position": {
+    "x": 270,
+    "y": 70,
+    "z": 1001,
+    "width": 230,
+    "height": 90,
+    "tabOrder": 2
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Trending Snapshots"
+                }
+              },
+              "queryRef": "_Measures.Total Trending Snapshots"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

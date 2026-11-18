@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "card_categories",
+  "position": {
+    "x": 770,
+    "y": 70,
+    "z": 1003,
+    "width": 230,
+    "height": 90,
+    "tabOrder": 4
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Categories"
+                }
+              },
+              "queryRef": "_Measures.Total Categories"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

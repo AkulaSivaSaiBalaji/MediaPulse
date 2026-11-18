@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "card_avg_peak_views",
+  "position": {
+    "x": 330,
+    "y": 70,
+    "z": 1001,
+    "width": 290,
+    "height": 90,
+    "tabOrder": 2
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Average Per-Video Peak Views"
+                }
+              },
+              "queryRef": "_Measures.Average Per-Video Peak Views"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

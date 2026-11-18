@@ -1,0 +1,87 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "scatter_reach_er",
+  "position": {
+    "x": 640,
+    "y": 180,
+    "z": 1005,
+    "width": 620,
+    "height": 250,
+    "tabOrder": 6
+  },
+  "visual": {
+    "visualType": "scatterChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimCategory"
+                    }
+                  },
+                  "Property": "category_title"
+                }
+              },
+              "queryRef": "DimCategory.category_title"
+            }
+          ]
+        },
+        "X": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Median Per-Video Peak Views"
+                }
+              },
+              "queryRef": "_Measures.Median Per-Video Peak Views"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Median Video-Level Engagement Rate"
+                }
+              },
+              "queryRef": "_Measures.Median Video-Level Engagement Rate"
+            }
+          ]
+        },
+        "Size": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Total Unique Videos"
+                }
+              },
+              "queryRef": "_Measures.Total Unique Videos"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

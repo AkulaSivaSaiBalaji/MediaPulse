@@ -1,0 +1,66 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "name": "line_daily_trending",
+  "position": {
+    "x": 20,
+    "y": 180,
+    "z": 1005,
+    "width": 780,
+    "height": 260,
+    "tabOrder": 6
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "DimDate"
+                    }
+                  },
+                  "Property": "full_date"
+                }
+              },
+              "queryRef": "DimDate.full_date"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Daily Trending Snapshot Count"
+                }
+              },
+              "queryRef": "_Measures.Daily Trending Snapshot Count"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Rolling 7-Observed-Date Snapshot Average"
+                }
+              },
+              "queryRef": "_Measures.Rolling 7-Observed-Date Snapshot Average"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
