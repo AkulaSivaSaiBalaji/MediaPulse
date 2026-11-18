@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "card_coverage_audit",
   "position": {
     "x": 820,
     "y": 460,
     "z": 1008,
-    "width": 440,
     "height": 240,
+    "width": 440,
     "tabOrder": 9
   },
   "visual": {
@@ -32,5 +32,23 @@
         }
       }
     }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "21572e8381b070b941b9",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Observed Trending Dates"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
   }
 }

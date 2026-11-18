@@ -1,0 +1,214 @@
+table _Measures
+	lineageTag: 7b15e0c4-5768-43f2-b2a6-b6e1adcc1e20
+
+	/// Authoritative count of unique creative assets observed trending (Baseline: 16,305 all-time; dynamically evaluates observed video count under date filters).
+	measure 'Total Unique Videos' = IF(ISCROSSFILTERED(DimDate), DISTINCTCOUNT(FactTrendingSnapshot[video_id]), DISTINCTCOUNT(DimVideo[video_id]))
+		formatString: #,##0
+		displayFolder: 01 Core KPIs
+		lineageTag: e9dc35b8-7bad-4588-8fe2-cfcb61485516
+
+	/// Total daily trending observation snapshots across the temporal window (Baseline: 32,265).
+	measure 'Total Trending Snapshots' = COUNTROWS(FactTrendingSnapshot)
+		formatString: #,##0
+		displayFolder: 01 Core KPIs
+		lineageTag: 5ca7c6af-060d-4a77-86fd-f5d56c6fcf79
+
+	/// Total unique YouTube publishers with at least one trending video (Baseline: 1,423).
+	measure 'Total Channels' = DISTINCTCOUNT(DimChannel[channel_id])
+		formatString: #,##0
+		displayFolder: 01 Core KPIs
+		lineageTag: d3c34de6-ef50-47ed-9557-16a1e254e4f0
+
+	/// Total distinct YouTube content categories represented (Baseline: 17).
+	measure 'Total Categories' = DISTINCTCOUNT(DimCategory[category_id])
+		formatString: #,##0
+		displayFolder: 01 Core KPIs
+		lineageTag: 83b34256-8a79-4a54-b107-bd64738d5c3a
+
+	/// Count of distinct calendar dates with collected trending snapshots (Baseline: 205).
+	measure 'Observed Trending Dates' = CALCULATE(DISTINCTCOUNT(FactTrendingSnapshot[trending_date]), FactTrendingSnapshot[trending_date] <> BLANK())
+		formatString: #,##0
+		displayFolder: 01 Core KPIs
+		lineageTag: 0439ccd6-93ff-439e-92aa-7d0a9b913c57
+
+	/// Sum of Per-Video Peak Cumulative Views. Evaluates maximum views per creative asset, preventing snapshot accumulation duplication (Baseline: 11,147,625,965). Does not represent unduplicated human audience reach.
+	measure 'Sum of Per-Video Peak Views' =
+			IF(
+			    ISCROSSFILTERED(DimDate),
+			    SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views]))),
+			    SUM(DimVideo[peak_views])
+			)
+		formatString: #,##0
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: ec7af926-2b20-47ce-ab5d-b37bf9513fbe
+
+	/// Arithmetic mean per-video peak cumulative views per unique creative asset (Baseline: 683,693.71).
+	measure 'Average Per-Video Peak Views' = DIVIDE([Sum of Per-Video Peak Views], [Total Unique Videos], 0)
+		formatString: #,##0.00
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: 4bb8cbd6-8cf7-4c70-a0e9-968d577e3293
+
+	/// True 50th percentile peak cumulative views, robust against extreme viral blockbuster skew (Baseline: 205,619.00).
+	measure 'Median Per-Video Peak Views' =
+			IF(
+			    ISCROSSFILTERED(DimDate),
+			    MEDIANX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views]))),
+			    MEDIAN(DimVideo[peak_views])
+			)
+		formatString: #,##0
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: 82a94f47-9bf9-4727-9eff-e3eb88a24b7a
+
+	/// Cumulative sum of per-video maximum observed likes.
+	measure 'Video Peak Likes' = IF(ISCROSSFILTERED(DimDate), SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[likes]))), SUM(DimVideo[peak_likes]))
+		formatString: #,##0
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: ef3942c9-e598-467d-b89f-7c1039814931
+
+	/// Cumulative sum of per-video maximum observed comments.
+	measure 'Video Peak Comments' = IF(ISCROSSFILTERED(DimDate), SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[comment_count]))), SUM(DimVideo[peak_comments]))
+		formatString: #,##0
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: 144ef484-f032-49c4-9c91-d3231c0546b3
+
+	/// Macro portfolio engagement: total peak interactions divided by total peak cumulative views times 100.
+	measure 'Catalog-Level Engagement Rate' = DIVIDE([Video Peak Likes] + [Video Peak Comments], [Sum of Per-Video Peak Views], 0) * 100
+		formatString: 0.0000"%"
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: 7b06b85a-1c51-40e4-8770-62fc1e62abdc
+
+	/// Arithmetic mean of individual creative asset engagement rates (Baseline: 2.0579%).
+	measure 'Average Video-Level Engagement Rate' =
+			IF(
+			    ISCROSSFILTERED(DimDate),
+			    AVERAGEX(
+			        FILTER(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views])) > 0),
+			        CALCULATE(DIVIDE(MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]), MAX(FactTrendingSnapshot[views]), 0) * 100)
+			    ),
+			    AVERAGEX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])
+			)
+		formatString: 0.0000"%"
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: d0c7b937-f46a-4ab4-9f1d-35e8a0755316
+
+	/// True median engagement intensity across unique videos, robust against low-denominator outliers (Baseline: 0.8284%).
+	measure 'Median Video-Level Engagement Rate' =
+			IF(
+			    ISCROSSFILTERED(DimDate),
+			    MEDIANX(
+			        FILTER(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views])) > 0),
+			        CALCULATE(DIVIDE(MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]), MAX(FactTrendingSnapshot[views]), 0) * 100)
+			    ),
+			    MEDIANX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])
+			)
+		formatString: 0.0000"%"
+		displayFolder: 02 Video Performance KPIs
+		lineageTag: 9e06ed07-a57d-46aa-9e7e-02cc065455bc
+
+	/// Mean elapsed calendar days between video publication and earliest observed trending appearance (Baseline: 1.31 days).
+	measure 'Average Days to First Observed Trending' = AVERAGEX(DimVideo, DimVideo[days_to_first_trend])
+		formatString: 0.00
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: f7f5c967-9cde-44f9-b8d4-383b2a7a2416
+
+	/// Median elapsed calendar days to earliest observed trending appearance (Baseline: 1.0 day).
+	measure 'Median Days to First Observed Trending' = MEDIANX(DimVideo, DimVideo[days_to_first_trend])
+		formatString: 0.0
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: ebf632f0-e8d7-469f-8cfa-74b56a9ddaa1
+
+	/// Unique videos appearing on the trending list on their calendar publication date (Day 0) (Baseline: 420 videos).
+	measure 'Same-Day Trending Videos' = CALCULATE([Total Unique Videos], DimVideo[is_same_day_trending] = 1)
+		formatString: #,##0
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: 21e33245-fa2c-487f-9cd2-1cb215993a47
+
+	/// Unique videos appearing on trending within 48 hours of upload (Day 0, 1, or 2) (Baseline: 15,720 videos).
+	measure 'Videos First Observed Trending Within 2 Days' = CALCULATE([Total Unique Videos], DimVideo[is_trending_within_2days] = 1)
+		formatString: #,##0
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: fc8971aa-fc1c-4209-adde-0422ead0cc54
+
+	/// Share of unique videos appearing on trending within 2 calendar days of upload (Baseline: 96.41%).
+	measure 'Percentage First Observed Trending Within 2 Days' = DIVIDE([Videos First Observed Trending Within 2 Days], [Total Unique Videos], 0) * 100
+		formatString: 0.00"%"
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: ff259340-5deb-4cc3-87a4-beec4a86d708
+
+	/// Average number of distinct snapshot dates videos were observed on the trending list (Baseline: 1.98 days). Represents observed trending persistence across snapshots, not continuous uninterrupted feed retention.
+	measure 'Average Distinct Trending Dates per Video' = AVERAGEX(DimVideo, DimVideo[distinct_trending_days])
+		formatString: 0.00
+		displayFolder: 03 Trending Behavior KPIs
+		lineageTag: 8895f83e-7827-4e29-912f-b94d49676003
+
+	/// Percentage contribution of unique videos from the active category within current slicer scope.
+	measure 'Category Share of Unique Videos' = DIVIDE([Total Unique Videos], CALCULATE([Total Unique Videos], ALLSELECTED(DimCategory)), 0) * 100
+		formatString: 0.00"%"
+		displayFolder: 04 Category & Channel KPIs
+		lineageTag: db2946db-46aa-4d1f-8bc0-f1fd2db2d77b
+
+	/// Percentage contribution of unique videos from the active channel within current slicer scope.
+	measure 'Channel Share of Unique Videos' = DIVIDE([Total Unique Videos], CALCULATE([Total Unique Videos], ALLSELECTED(DimChannel)), 0) * 100
+		formatString: 0.00"%"
+		displayFolder: 04 Category & Channel KPIs
+		lineageTag: cb9eec75-e7ae-4837-b27e-ab3351daa242
+
+	/// Dense rank of categories based on catalog unique video count.
+	measure 'Category Rank by Unique Videos' = IF(ISINSCOPE(DimCategory[category_title]), RANKX(ALLSELECTED(DimCategory), [Total Unique Videos], , DESC, Dense))
+		formatString: 0
+		displayFolder: 04 Category & Channel KPIs
+		lineageTag: dab1a13e-fcfb-431f-a5e2-ba90407ac135
+
+	/// Dense rank of publisher channels based on catalog unique video count.
+	measure 'Channel Rank by Unique Videos' = IF(ISINSCOPE(DimChannel[channel_title]), RANKX(ALLSELECTED(DimChannel), [Total Unique Videos], , DESC, Dense))
+		formatString: 0
+		displayFolder: 04 Category & Channel KPIs
+		lineageTag: 37f86173-ca11-4a2a-9668-4249a376f96c
+
+	/// Total daily trending snapshots recorded for the selected date or period.
+	measure 'Daily Trending Snapshot Count' = COUNTROWS(FactTrendingSnapshot)
+		formatString: #,##0
+		displayFolder: 05 Time-Based Analytics
+		lineageTag: fe3e6ee8-8407-4da2-8518-7c96a0f5965a
+
+	/// Absolute change in snapshot observations compared to the prior calendar month.
+	measure 'Month-over-Month Snapshot Count Change' =
+			VAR CurrentMonthSnapshots = [Daily Trending Snapshot Count]
+			VAR PreviousMonthSnapshots = CALCULATE([Daily Trending Snapshot Count], DATEADD(DimDate[full_date], -1, MONTH))
+			RETURN IF(NOT ISBLANK(CurrentMonthSnapshots) && NOT ISBLANK(PreviousMonthSnapshots), CurrentMonthSnapshots - PreviousMonthSnapshots, BLANK())
+		formatString: +#,##0;-#,##0;0
+		displayFolder: 05 Time-Based Analytics
+		lineageTag: 7ac5d415-46a1-4140-b818-06e5a8b32be9
+
+	/// Percentage change in snapshot observations compared to the prior calendar month.
+	measure 'Month-over-Month Snapshot Count Change Percentage' =
+			VAR CurrentMonthSnapshots = [Daily Trending Snapshot Count]
+			VAR PreviousMonthSnapshots = CALCULATE([Daily Trending Snapshot Count], DATEADD(DimDate[full_date], -1, MONTH))
+			RETURN DIVIDE(CurrentMonthSnapshots - PreviousMonthSnapshots, PreviousMonthSnapshots, 0) * 100
+		formatString: +0.00"%";-0.00"%";0.00"%"
+		displayFolder: 05 Time-Based Analytics
+		lineageTag: 493faa9b-8e11-454c-a3f5-8b9d9eeef03c
+
+	/// 7-observed-date moving average of snapshot volume. Strictly bridges missing collection dates.
+	measure 'Rolling 7-Observed-Date Snapshot Average' =
+			VAR CurrentDate = MAX(DimDate[full_date])
+			VAR Last7ObservedDates = TOPN(7, FILTER(ALL(DimDate), DimDate[full_date] <= CurrentDate && DimDate[is_trending_snapshot_date] = 1), DimDate[full_date], DESC)
+			RETURN IF(MAX(DimDate[is_trending_snapshot_date]) = 1, AVERAGEX(Last7ObservedDates, CALCULATE([Daily Trending Snapshot Count])))
+		formatString: #,##0.0
+		displayFolder: 05 Time-Based Analytics
+		lineageTag: 89cd09ae-43ef-4c5b-865b-2b3d5480f32f
+
+	column Measure_ID
+		dataType: int64
+		isHidden
+		lineageTag: 6711b073-419f-4a8b-b4e8-a05cd69c263a
+		sourceColumn: Measure_ID
+
+	partition _Measures-Partition = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WMlSKjQUA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Measure_ID = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"Measure_ID", Int64.Type}})
+				in
+				    #"Changed Type"

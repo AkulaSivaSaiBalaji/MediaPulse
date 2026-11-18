@@ -1,0 +1,162 @@
+table DimVideo
+	lineageTag: 51a81c48-8c17-4460-b835-6c7bd4ae0778
+
+	column video_id
+		dataType: string
+		isKey
+		lineageTag: c44a6fc9-8cbc-430a-840b-e0b50356746a
+		sourceColumn: video_id
+
+	column channel_id
+		dataType: int64
+		lineageTag: ff19cf06-2676-4577-b3af-0228c6ccce84
+		sourceColumn: channel_id
+
+	column category_id
+		dataType: int64
+		lineageTag: 7b36426a-9901-4e71-a47c-930fe4153745
+		sourceColumn: category_id
+
+	column video_title
+		dataType: string
+		lineageTag: 4ad94a83-b497-4c51-849a-43f9958267b6
+		sourceColumn: video_title
+
+	column publish_time
+		dataType: dateTime
+		lineageTag: e1011740-5d81-4742-ac2f-1e1f67d4a011
+		sourceColumn: publish_time
+
+	column publish_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 9337def4-2f35-418c-8ce7-b00c04002ad0
+		summarizeBy: none
+		sourceColumn: publish_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column publish_hour
+		dataType: int64
+		lineageTag: 4d5dec2e-bdf7-4209-b194-4f62ad5a559f
+		sourceColumn: publish_hour
+
+	column publish_day_name
+		dataType: string
+		lineageTag: 8379549a-28e0-41ff-af48-013b85d584ea
+		sourceColumn: publish_day_name
+
+	column thumbnail_link
+		dataType: string
+		lineageTag: c50b5b89-4427-4255-a416-e1d4659075aa
+		sourceColumn: thumbnail_link
+
+	column has_description
+		dataType: boolean
+		lineageTag: 52ade22d-6f6e-412c-88c1-9a98815b38a9
+		sourceColumn: has_description
+
+	column comments_disabled_earliest
+		dataType: boolean
+		lineageTag: cb5c07fe-7d11-4974-827b-67e1b2586c0f
+		sourceColumn: comments_disabled_earliest
+
+	column ratings_disabled_earliest
+		dataType: boolean
+		lineageTag: 43f57a11-d193-4b72-b469-0981bcf6e9fe
+		sourceColumn: ratings_disabled_earliest
+
+	column video_error_or_removed_earliest
+		dataType: boolean
+		lineageTag: 8b5f8fc1-f6e7-4743-a2e9-2afe11992277
+		sourceColumn: video_error_or_removed_earliest
+
+	column first_trending_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 2cf53c1a-52b8-4c4b-95f5-9bc4257f3319
+		summarizeBy: none
+		sourceColumn: first_trending_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_trending_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: ffe7aafd-f399-49dc-a0c0-9d8995cbb70c
+		summarizeBy: none
+		sourceColumn: last_trending_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column distinct_trending_days
+		dataType: int64
+		lineageTag: 14d8cbf1-a53c-4685-8e2b-0fac3325a329
+		sourceColumn: distinct_trending_days
+
+	column days_to_first_trend
+		dataType: int64
+		lineageTag: 9c2eadc3-4f15-4142-afa0-9fc7600abc58
+		sourceColumn: days_to_first_trend
+
+	column peak_views
+		dataType: int64
+		lineageTag: 016bed6e-0bc5-4514-b468-14564113484c
+		sourceColumn: peak_views
+
+	column peak_likes
+		dataType: int64
+		lineageTag: 0e9ac21d-34b9-4106-8526-d114281921ed
+		sourceColumn: peak_likes
+
+	column peak_dislikes
+		dataType: int64
+		lineageTag: 1fe45bac-b5a6-4efe-b527-adf9723ada3f
+		sourceColumn: peak_dislikes
+
+	column peak_comments
+		dataType: int64
+		lineageTag: 6abf76df-fb1e-4490-8625-7c7bedf32db9
+		sourceColumn: peak_comments
+
+	column lifetime_engagement_rate
+		dataType: double
+		lineageTag: aa6f64db-39fe-4588-b156-6ef3e7a58b53
+		sourceColumn: lifetime_engagement_rate
+
+	column is_same_day_trending
+		dataType: int64
+		lineageTag: 41a7955e-31bb-41a0-86e0-1599705f0b36
+		sourceColumn: is_same_day_trending
+
+	column is_trending_within_2days
+		dataType: int64
+		lineageTag: db12a917-071e-4e05-a2b0-684cd4f7d9da
+		sourceColumn: is_trending_within_2days
+
+	partition DimVideo-Partition = m
+		mode: import
+		source =
+				let
+				    Source = MySQL.Database("127.0.0.1:3306", "mediapulse_db", [ReturnSingleDatabase=true]),
+				    Data = Source{[Schema="mediapulse_db", Item="vw_dim_video", Kind="View"]}[Data],
+				    Typed = Table.TransformColumnTypes(Data, {
+				        {"video_id", type text}, {"channel_id", Int64.Type}, {"category_id", Int64.Type},
+				        {"video_title", type text}, {"publish_time", type datetime}, {"publish_date", type date},
+				        {"publish_hour", Int64.Type}, {"publish_day_name", type text}, {"thumbnail_link", type text},
+				        {"has_description", type logical}, {"comments_disabled_earliest", type logical},
+				        {"ratings_disabled_earliest", type logical}, {"video_error_or_removed_earliest", type logical},
+				        {"first_trending_date", type date}, {"last_trending_date", type date},
+				        {"distinct_trending_days", Int64.Type}, {"days_to_first_trend", Int64.Type},
+				        {"peak_views", Int64.Type}, {"peak_likes", Int64.Type}, {"peak_dislikes", Int64.Type},
+				        {"peak_comments", Int64.Type}, {"lifetime_engagement_rate", type number},
+				        {"is_same_day_trending", Int64.Type}, {"is_trending_within_2days", Int64.Type}
+				    })
+				in
+				    Typed

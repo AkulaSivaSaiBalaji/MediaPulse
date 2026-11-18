@@ -1,0 +1,100 @@
+table DimDate
+	lineageTag: 4a6bf971-03b2-4582-8a42-7baea4f80b46
+
+	column full_date
+		dataType: dateTime
+		isKey
+		formatString: Long Date
+		lineageTag: 3735414b-5a3f-4f94-96d2-a7943494e695
+		summarizeBy: none
+		sourceColumn: full_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column calendar_year
+		dataType: int64
+		lineageTag: 2fa7d7ee-bb55-4031-b11a-ac3d4e4637ab
+		sourceColumn: calendar_year
+
+	column month_number
+		dataType: int64
+		lineageTag: 36bc2009-7aa6-4cc0-8553-0022c7f7ccc1
+		sourceColumn: month_number
+
+	column month_name
+		dataType: string
+		lineageTag: fe04d838-43a7-481e-bbbe-a1b7a29fb017
+		sourceColumn: month_name
+		sortByColumn: month_number
+
+	column month_short
+		dataType: string
+		lineageTag: 5967ad3f-538d-40e2-906f-083137afaf86
+		sourceColumn: month_short
+		sortByColumn: month_number
+
+	column year_month_label
+		dataType: string
+		lineageTag: 6e244c08-5a88-49cd-92d3-f33fd6aa3f73
+		sourceColumn: year_month_label
+		sortByColumn: year_month_sort
+
+	column year_month_sort
+		dataType: int64
+		lineageTag: b583b0a0-2595-413e-9bf2-8375a7694009
+		sourceColumn: year_month_sort
+
+	column quarter_name
+		dataType: string
+		lineageTag: df6689a0-4dd0-45ff-891c-2477a146d3e6
+		sourceColumn: quarter_name
+
+	column iso_week_number
+		dataType: int64
+		lineageTag: 72483ee7-ce0c-4d3f-a48d-12762e2cf971
+		sourceColumn: iso_week_number
+
+	column day_of_week_num
+		dataType: int64
+		lineageTag: 071b7853-e64e-424a-b4f8-b188850c0f60
+		sourceColumn: day_of_week_num
+
+	column iso_weekday_num
+		dataType: int64
+		lineageTag: c102f1a2-d9af-4799-9257-dff4f7bf8916
+		sourceColumn: iso_weekday_num
+
+	column weekday_name
+		dataType: string
+		lineageTag: e4cd1eb3-fac5-4bb3-855d-71f047fcb0ea
+		sourceColumn: weekday_name
+		sortByColumn: iso_weekday_num
+
+	column weekday_short
+		dataType: string
+		lineageTag: 1e508bc6-2a44-4eac-9f24-cee5110e6398
+		sourceColumn: weekday_short
+		sortByColumn: iso_weekday_num
+
+	column is_trending_snapshot_date
+		dataType: int64
+		lineageTag: 0cab42b4-c464-48ed-8e55-a7aec3575c4c
+		sourceColumn: is_trending_snapshot_date
+
+	partition DimDate-Partition = m
+		mode: import
+		source =
+				let
+				    Source = MySQL.Database("127.0.0.1:3306", "mediapulse_db", [ReturnSingleDatabase=true]),
+				    Data = Source{[Schema="mediapulse_db", Item="vw_dim_date", Kind="View"]}[Data],
+				    Typed = Table.TransformColumnTypes(Data, {
+				        {"full_date", type date}, {"calendar_year", Int64.Type}, {"month_number", Int64.Type},
+				        {"month_name", type text}, {"month_short", type text}, {"year_month_label", type text},
+				        {"year_month_sort", Int64.Type}, {"quarter_name", type text}, {"iso_week_number", Int64.Type},
+				        {"day_of_week_num", Int64.Type}, {"iso_weekday_num", Int64.Type}, {"weekday_name", type text},
+				        {"weekday_short", type text}, {"is_trending_snapshot_date", Int64.Type}
+				    })
+				in
+				    Typed

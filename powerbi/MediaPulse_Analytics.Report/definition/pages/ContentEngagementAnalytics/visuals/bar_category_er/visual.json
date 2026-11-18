@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "bar_category_er",
   "position": {
     "x": 20,
     "y": 180,
     "z": 1004,
-    "width": 600,
     "height": 250,
+    "width": 600,
     "tabOrder": 5
   },
   "visual": {
@@ -26,7 +26,8 @@
                   "Property": "category_title"
                 }
               },
-              "queryRef": "DimCategory.category_title"
+              "queryRef": "DimCategory.category_title",
+              "active": true
             }
           ]
         },

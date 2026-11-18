@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "line_daily_trending",
   "position": {
     "x": 20,
     "y": 180,
     "z": 1005,
-    "width": 780,
     "height": 260,
+    "width": 780,
     "tabOrder": 6
   },
   "visual": {
@@ -26,7 +26,8 @@
                   "Property": "full_date"
                 }
               },
-              "queryRef": "DimDate.full_date"
+              "queryRef": "DimDate.full_date",
+              "active": true
             }
           ]
         },

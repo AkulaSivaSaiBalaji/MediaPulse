@@ -67,3 +67,7 @@ Desktop.ini
 
 # Temporary scratch directory
 scratch/
+
+# Power BI Desktop local settings and cache
+**/.pbi/
+*.abf

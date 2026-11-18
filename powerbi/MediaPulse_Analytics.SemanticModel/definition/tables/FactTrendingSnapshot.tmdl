@@ -1,0 +1,101 @@
+table FactTrendingSnapshot
+	lineageTag: 6a8ff203-d434-4f76-8c03-285ef4b10498
+
+	column snapshot_id
+		dataType: int64
+		isKey
+		lineageTag: a53a9a23-a2d8-4b56-aa1c-40509a40dab8
+		sourceColumn: snapshot_id
+
+	column video_id
+		dataType: string
+		lineageTag: 0553438b-a95c-4dfb-85f5-71d7c00b6201
+		sourceColumn: video_id
+
+	column trending_date
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f0e9dc31-6a22-4838-bcba-96f434e3b64b
+		summarizeBy: none
+		sourceColumn: trending_date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation SummarizationSetBy = Automatic
+
+	column views
+		dataType: int64
+		lineageTag: 4bb1698e-8038-4e1a-b1c3-348114efd46c
+		sourceColumn: views
+
+	column likes
+		dataType: int64
+		lineageTag: 62af1f9a-de2f-4b26-941d-a681766bc8b9
+		sourceColumn: likes
+
+	column dislikes
+		dataType: int64
+		lineageTag: ca920fe0-25b2-4c5b-a467-6c018ac3791b
+		sourceColumn: dislikes
+
+	column comment_count
+		dataType: int64
+		lineageTag: d8265e1a-de16-42ca-9eaa-be2c4c40a9ef
+		sourceColumn: comment_count
+
+	column comments_disabled
+		dataType: boolean
+		lineageTag: 20876faa-7e78-40e0-9c2b-1205cf6ec086
+		sourceColumn: comments_disabled
+
+	column ratings_disabled
+		dataType: boolean
+		lineageTag: 50db33e6-9b0e-402f-8729-7280b9d88df2
+		sourceColumn: ratings_disabled
+
+	column video_error_or_removed
+		dataType: boolean
+		lineageTag: bb90911a-78ce-42a1-ad3a-71d9d1245740
+		sourceColumn: video_error_or_removed
+
+	column snapshot_days_to_trend
+		dataType: int64
+		lineageTag: 599d8d73-3b9a-4c11-a749-483e3a396ddb
+		sourceColumn: snapshot_days_to_trend
+
+	column snapshot_engagement_rate
+		dataType: double
+		lineageTag: 0c561f95-52c9-4694-ac85-05053c84ae8a
+		sourceColumn: snapshot_engagement_rate
+
+	column snapshot_total_interaction_rate
+		dataType: double
+		lineageTag: bb7a7b5f-b60f-4308-922e-ac87be3fd6e2
+		sourceColumn: snapshot_total_interaction_rate
+
+	column snapshot_like_ratio
+		dataType: double
+		lineageTag: a11cc600-a027-4dd8-a413-b9e8ce22f37c
+		sourceColumn: snapshot_like_ratio
+
+	column snapshot_ingested_at
+		dataType: dateTime
+		lineageTag: 163db4a2-741a-4a6c-a85f-2c85a8a64f5b
+		sourceColumn: snapshot_ingested_at
+
+	partition FactTrendingSnapshot-Partition = m
+		mode: import
+		source =
+				let
+				    Source = MySQL.Database("127.0.0.1:3306", "mediapulse_db", [ReturnSingleDatabase=true]),
+				    Data = Source{[Schema="mediapulse_db", Item="vw_fact_trending_snapshots", Kind="View"]}[Data],
+				    Typed = Table.TransformColumnTypes(Data, {
+				        {"snapshot_id", Int64.Type}, {"video_id", type text}, {"trending_date", type date},
+				        {"views", Int64.Type}, {"likes", Int64.Type}, {"dislikes", Int64.Type}, {"comment_count", Int64.Type},
+				        {"comments_disabled", type logical}, {"ratings_disabled", type logical}, {"video_error_or_removed", type logical},
+				        {"snapshot_days_to_trend", Int64.Type}, {"snapshot_engagement_rate", type number},
+				        {"snapshot_total_interaction_rate", type number}, {"snapshot_like_ratio", type number},
+				        {"snapshot_ingested_at", type datetime}
+				    })
+				in
+				    Typed

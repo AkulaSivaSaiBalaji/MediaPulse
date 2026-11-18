@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "MediaPulse_Analytics"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "d2ef8c69-8080-4671-a73b-f14af16d2951"
+  }
+}

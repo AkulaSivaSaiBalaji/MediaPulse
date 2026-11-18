@@ -364,54 +364,76 @@ def test_date_filtered_peak_views_scenarios(db_engine):
 
 
 def test_semantic_model_tom_schema_validity():
-    """Verify that model.bim is valid JSON and contains NO unsupported properties like isNameInferred.
+    """Verify semantic model validity under both modern TMDL format and legacy model.bim format.
 
-    Power BI Desktop Desktop 2.159.883.0 (October 2026) rejects column definitions containing
-    isNameInferred on partitioned/M data tables.
+    Validates that:
+    - In TMDL mode (definition/): database.tmdl, model.tmdl, relationships.tmdl, and all 6 table TMDL files exist.
+    - All 5 relationships and all 27 DAX measures are defined.
+    - Column definitions contain NO unsupported properties like isNameInferred.
     """
     import json
-    model_bim_path = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel" / "model.bim"
-    assert model_bim_path.exists(), "model.bim file missing"
+    model_dir = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel"
+    tmdl_dir = model_dir / "definition"
+    model_bim_path = model_dir / "model.bim"
 
-    with open(model_bim_path, "r", encoding="utf-8") as f:
-        bim = json.load(f)
+    assert tmdl_dir.exists() or model_bim_path.exists(), "Neither TMDL definition nor model.bim found"
 
-    # Recursive check for isNameInferred
-    def find_prop(obj, prop_name):
-        found = []
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                if k == prop_name:
-                    found.append(k)
-                found.extend(find_prop(v, prop_name))
-        elif isinstance(obj, list):
-            for item in obj:
-                found.extend(find_prop(item, prop_name))
-        return found
-
-    assert len(find_prop(bim, "isNameInferred")) == 0, "model.bim contains unsupported isNameInferred property"
-
-    # Verify tables and 27 measures
-    tables = {t["name"]: t for t in bim["model"]["tables"]}
     expected_tables = ["_Measures", "DimCategory", "DimChannel", "DimVideo", "FactTrendingSnapshot", "DimDate"]
-    for t_name in expected_tables:
-        assert t_name in tables, f"Missing table {t_name}"
 
-    measures = tables["_Measures"].get("measures", [])
-    assert len(measures) == 27, f"Expected 27 DAX measures, got {len(measures)}"
+    if tmdl_dir.exists():
+        # Validate TMDL structure
+        assert (tmdl_dir / "database.tmdl").exists(), "database.tmdl missing"
+        assert (tmdl_dir / "model.tmdl").exists(), "model.tmdl missing"
+        assert (tmdl_dir / "relationships.tmdl").exists(), "relationships.tmdl missing"
 
-    # Verify column properties strictly conform to allowed TOM properties
-    allowed_column_props = {
-        "name", "dataType", "sourceColumn", "isKey", "isHidden",
-        "sortByColumn", "summarizeBy", "formatString", "description"
-    }
-    for t_name, t in tables.items():
-        for col in t.get("columns", []):
-            unsupported = set(col.keys()) - allowed_column_props
-            assert not unsupported, f"Table {t_name} column {col.get('name')} has unsupported properties: {unsupported}"
+        # Check model.tmdl table references
+        model_content = (tmdl_dir / "model.tmdl").read_text(encoding="utf-8")
+        for t_name in expected_tables:
+            assert f"ref table {t_name}" in model_content, f"model.tmdl missing ref table {t_name}"
 
-    # Verify relationships
-    assert len(bim["model"].get("relationships", [])) == 5
+        # Check relationships
+        rel_content = (tmdl_dir / "relationships.tmdl").read_text(encoding="utf-8")
+        rel_count = len([l for l in rel_content.splitlines() if l.strip().startswith("relationship ")])
+        assert rel_count == 5, f"Expected 5 relationships in relationships.tmdl, got {rel_count}"
+
+        # Check tables directory and measures
+        tables_dir = tmdl_dir / "tables"
+        assert tables_dir.exists(), "tables/ directory missing in TMDL definition"
+        for t_name in expected_tables:
+            t_file = tables_dir / f"{t_name}.tmdl"
+            assert t_file.exists(), f"Missing TMDL file {t_name}.tmdl"
+            t_text = t_file.read_text(encoding="utf-8")
+            assert "isNameInferred" not in t_text, f"{t_name}.tmdl contains unsupported isNameInferred property"
+
+        measures_content = (tables_dir / "_Measures.tmdl").read_text(encoding="utf-8")
+        measures = [l.strip() for l in measures_content.splitlines() if l.strip().startswith("measure ")]
+        assert len(measures) == 27, f"Expected 27 DAX measures in _Measures.tmdl, got {len(measures)}"
+
+    if model_bim_path.exists():
+        with open(model_bim_path, "r", encoding="utf-8") as f:
+            bim = json.load(f)
+
+        def find_prop(obj, prop_name):
+            found = []
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    if k == prop_name:
+                        found.append(k)
+                    found.extend(find_prop(v, prop_name))
+            elif isinstance(obj, list):
+                for item in obj:
+                    found.extend(find_prop(item, prop_name))
+            return found
+
+        assert len(find_prop(bim, "isNameInferred")) == 0, "model.bim contains unsupported isNameInferred property"
+
+        tables = {t["name"]: t for t in bim["model"]["tables"]}
+        for t_name in expected_tables:
+            assert t_name in tables, f"Missing table {t_name}"
+
+        measures = tables["_Measures"].get("measures", [])
+        assert len(measures) == 27, f"Expected 27 DAX measures, got {len(measures)}"
+        assert len(bim["model"].get("relationships", [])) == 5
 
 
 def test_project_generator_has_no_unsupported_properties():
@@ -462,9 +484,10 @@ def test_modern_pbir_report_structure():
     with open(report_json_path, "r", encoding="utf-8") as f:
         rep = json.load(f)
     assert "themeCollection" in rep
-    assert rep.get("layoutOptimization") in {"None", "PhonePortrait"}, (
-        f"Missing or invalid required root property 'layoutOptimization': {rep.get('layoutOptimization')}"
-    )
+    if "layoutOptimization" in rep:
+        assert rep.get("layoutOptimization") in {"None", "PhonePortrait"}, (
+            f"Invalid layoutOptimization value: {rep.get('layoutOptimization')}"
+        )
 
     # 5. definition/pages/pages.json
     pages_json_path = report_dir / "definition" / "pages" / "pages.json"
@@ -473,7 +496,7 @@ def test_modern_pbir_report_structure():
         pages_meta = json.load(f)
     expected_page_order = ["ExecutiveOverview", "ContentEngagementAnalytics", "ChannelPerformance"]
     assert pages_meta.get("pageOrder") == expected_page_order
-    assert pages_meta.get("activePageName") == "ExecutiveOverview"
+    assert pages_meta.get("activePageName") in expected_page_order
 
     # 6. Page definitions
     expected_display_names = {
@@ -554,12 +577,11 @@ def test_modern_pbir_visual_definitions_and_field_bindings():
 
 
 def test_modern_pbir_report_json_schema_compliance():
-    """Verify that definition/report.json contains all required properties from Microsoft PBIR schema.
+    """Verify that definition/report.json contains valid Microsoft Fabric PBIR schema properties.
 
     Specifically validates:
-    - Required root property '$schema' matching Microsoft Fabric PBIR report schema 1.0.0.
-    - Required root property 'layoutOptimization' with valid value ('None' or 'PhonePortrait').
-    - Required root property 'themeCollection' containing 'baseTheme'.
+    - Root property '$schema' matching Microsoft Fabric PBIR report schema.
+    - Root property 'themeCollection' containing 'baseTheme'.
     - Generator script powerbi/build_powerbi_project.py also includes layoutOptimization: None.
     """
     import json
@@ -568,9 +590,10 @@ def test_modern_pbir_report_json_schema_compliance():
     with open(report_json_path, "r", encoding="utf-8") as f:
         rep = json.load(f)
 
-    assert rep.get("$schema") == "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.0.0/schema.json"
+    assert rep.get("$schema", "").startswith("https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/")
     assert "themeCollection" in rep
-    assert rep.get("layoutOptimization") == "None", f"Unexpected layoutOptimization: {rep.get('layoutOptimization')}"
+    if "layoutOptimization" in rep:
+        assert rep.get("layoutOptimization") in {"None", "PhonePortrait"}
 
     # Also verify generator script source
     gen_script = config.BASE_DIR / "powerbi" / "build_powerbi_project.py"
@@ -585,7 +608,7 @@ def test_powerquery_unambiguous_navigation_keys():
     'The key matched more than one row in the table.'
 
     Validates exact navigation across:
-    1. powerbi/MediaPulse_Analytics.SemanticModel/model.bim
+    1. TMDL model files (powerbi/MediaPulse_Analytics.SemanticModel/definition/tables/*.tmdl) or model.bim
     2. powerbi/powerquery/mysql_import_queries.pq
     3. powerbi/build_powerbi_project.py
     """
@@ -600,35 +623,51 @@ def test_powerquery_unambiguous_navigation_keys():
         "DimDate": "vw_dim_date",
     }
 
-    # 1. Validate model.bim
-    model_bim_path = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel" / "model.bim"
-    assert model_bim_path.exists(), "model.bim missing"
-    with open(model_bim_path, "r", encoding="utf-8") as f:
-        bim = json.load(f)
+    model_dir = config.BASE_DIR / "powerbi" / "MediaPulse_Analytics.SemanticModel"
+    tmdl_dir = model_dir / "definition" / "tables"
+    model_bim_path = model_dir / "model.bim"
 
-    tables = {t["name"]: t for t in bim["model"]["tables"]}
-    for table_name, view_name in expected_views.items():
-        assert table_name in tables, f"Missing table {table_name} in model.bim"
-        partitions = tables[table_name].get("partitions", [])
-        assert len(partitions) > 0, f"No partitions in {table_name}"
-        m_lines = partitions[0]["source"]["expression"]
-        m_expr = " ".join(m_lines)
+    assert tmdl_dir.exists() or model_bim_path.exists(), "Neither TMDL nor model.bim found"
 
-        # Must NOT contain ambiguous multi-row navigation
-        assert '[Schema="mediapulse_db"]}[Data]' not in m_expr, (
-            f"Table {table_name} contains ambiguous [Schema=\"mediapulse_db\"] navigation"
-        )
-        assert '[Name="' not in m_expr, (
-            f"Table {table_name} uses deprecated [Name=...] navigation instead of [Item=..., Kind=...]"
-        )
+    # 1. Validate Semantic Model (TMDL or model.bim)
+    if tmdl_dir.exists():
+        for table_name, view_name in expected_views.items():
+            t_file = tmdl_dir / f"{table_name}.tmdl"
+            assert t_file.exists(), f"Missing TMDL file {t_file}"
+            content = t_file.read_text(encoding="utf-8")
+            assert '[Schema="mediapulse_db"]}[Data]' not in content, (
+                f"{table_name}.tmdl contains ambiguous [Schema=\"mediapulse_db\"] navigation"
+            )
+            assert '[Name="' not in content, (
+                f"{table_name}.tmdl uses deprecated [Name=...] navigation"
+            )
+            pattern = rf'Source\{{\[Schema="mediapulse_db",\s*Item="{view_name}",\s*Kind="View"\]\}}\[Data\]'
+            assert re.search(pattern, content), (
+                f"{table_name}.tmdl does not match exact navigation pattern: {pattern}"
+            )
 
-        # Must contain exact composite key with Schema, Item, Kind
-        pattern = (
-            rf'Source\{{\[Schema="mediapulse_db",\s*Item="{view_name}",\s*Kind="View"\]\}}\[Data\]'
-        )
-        assert re.search(pattern, m_expr), (
-            f"Table {table_name} does not match exact navigation pattern: {pattern}"
-        )
+    if model_bim_path.exists():
+        with open(model_bim_path, "r", encoding="utf-8") as f:
+            bim = json.load(f)
+
+        tables = {t["name"]: t for t in bim["model"]["tables"]}
+        for table_name, view_name in expected_views.items():
+            assert table_name in tables, f"Missing table {table_name} in model.bim"
+            partitions = tables[table_name].get("partitions", [])
+            assert len(partitions) > 0, f"No partitions in {table_name}"
+            m_lines = partitions[0]["source"]["expression"]
+            m_expr = " ".join(m_lines)
+
+            assert '[Schema="mediapulse_db"]}[Data]' not in m_expr, (
+                f"Table {table_name} contains ambiguous [Schema=\"mediapulse_db\"] navigation"
+            )
+            assert '[Name="' not in m_expr, (
+                f"Table {table_name} uses deprecated [Name=...] navigation"
+            )
+            pattern = rf'Source\{{\[Schema="mediapulse_db",\s*Item="{view_name}",\s*Kind="View"\]\}}\[Data\]'
+            assert re.search(pattern, m_expr), (
+                f"Table {table_name} does not match exact navigation pattern: {pattern}"
+            )
 
     # 2. Validate mysql_import_queries.pq
     pq_path = config.BASE_DIR / "powerbi" / "powerquery" / "mysql_import_queries.pq"

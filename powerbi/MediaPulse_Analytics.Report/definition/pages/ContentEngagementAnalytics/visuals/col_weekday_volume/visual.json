@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
   "name": "col_weekday_volume",
   "position": {
     "x": 20,
     "y": 450,
     "z": 1006,
-    "width": 600,
     "height": 250,
+    "width": 600,
     "tabOrder": 7
   },
   "visual": {
@@ -26,7 +26,8 @@
                   "Property": "weekday_name"
                 }
               },
-              "queryRef": "DimDate.weekday_name"
+              "queryRef": "DimDate.weekday_name",
+              "active": true
             }
           ]
         },

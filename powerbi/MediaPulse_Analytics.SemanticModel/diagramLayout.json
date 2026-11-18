@@ -1,0 +1,100 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 962.28488111839033,
+            "y": 237.30468836350741
+          },
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "7b15e0c4-5768-43f2-b2a6-b6e1adcc1e20",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 334.29404449580352,
+            "y": -50
+          },
+          "nodeIndex": "DimCategory",
+          "nodeLineageTag": "c175f346-1d98-4c5c-985f-242ff9291ac9",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 728.28488111839056,
+            "y": 345.00515699746393
+          },
+          "nodeIndex": "DimChannel",
+          "nodeLineageTag": "269f885f-1d8d-4a45-a7e5-7221791e0e5b",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 159.90575154809204,
+            "y": 424.609376727015
+          },
+          "nodeIndex": "DimDate",
+          "nodeLineageTag": "4a6bf971-03b2-4582-8a42-7baea4f80b46",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 444.07227611757537,
+            "y": 174.14643304668823
+          },
+          "nodeIndex": "DimVideo",
+          "nodeLineageTag": "51a81c48-8c17-4460-b835-6c7bd4ae0778",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 50,
+            "y": 74.45879517613298
+          },
+          "nodeIndex": "FactTrendingSnapshot",
+          "nodeLineageTag": "6a8ff203-d434-4f76-8c03-285ef4b10498",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 100,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "All tables",
+  "defaultDiagram": "All tables"
+}

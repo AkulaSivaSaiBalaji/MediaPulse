@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "MediaPulse_Analytics"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "f72be655-1519-47ef-8692-d23c77d55d82"
+  }
+}

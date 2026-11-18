@@ -41,8 +41,10 @@ pbir_payload = {
 (REPORT_DIR / "definition.pbir").write_text(json.dumps(pbir_payload, indent=2), encoding="utf-8")
 
 # 3. MediaPulse_Analytics.SemanticModel/definition.pbism
+has_tmdl = (MODEL_DIR / "definition" / "tables").exists()
+pbism_version = "4.2" if has_tmdl else "4.0"
 pbism_payload = {
-    "version": "4.0",
+    "version": pbism_version,
     "settings": {}
 }
 (MODEL_DIR / "definition.pbism").write_text(json.dumps(pbism_payload, indent=2), encoding="utf-8")
@@ -588,7 +590,15 @@ model_bim = {
     }
 }
 
-(MODEL_DIR / "model.bim").write_text(json.dumps(model_bim, indent=2), encoding="utf-8")
+if has_tmdl:
+    print("TMDL semantic model format detected at MediaPulse_Analytics.SemanticModel/definition.")
+    print("Preserving validated TMDL model; skipping legacy model.bim generation.")
+    legacy_bim = MODEL_DIR / "model.bim"
+    if legacy_bim.exists():
+        legacy_bim.unlink()
+        print("Removed legacy model.bim to prevent format conflict with TMDL.")
+else:
+    (MODEL_DIR / "model.bim").write_text(json.dumps(model_bim, indent=2), encoding="utf-8")
 
 # 8. Assemble native modular PBIR report definition (Fabric / Power BI 2.159.883.0+)
 DEFINITION_DIR = REPORT_DIR / "definition"

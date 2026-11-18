@@ -1,0 +1,28 @@
+table DimChannel
+	lineageTag: 269f885f-1d8d-4a45-a7e5-7221791e0e5b
+
+	column channel_id
+		dataType: int64
+		isKey
+		lineageTag: a99608cf-c8b7-4179-9f37-061ce49e0ea8
+		sourceColumn: channel_id
+
+	column channel_title
+		dataType: string
+		lineageTag: d31085d0-bbda-40bf-bf13-53ec2f71d8d1
+		sourceColumn: channel_title
+
+	column ingested_at
+		dataType: dateTime
+		lineageTag: 748fcc3f-2956-4262-a92b-2f77ffac5c7c
+		sourceColumn: ingested_at
+
+	partition DimChannel-Partition = m
+		mode: import
+		source =
+				let
+				    Source = MySQL.Database("127.0.0.1:3306", "mediapulse_db", [ReturnSingleDatabase=true]),
+				    Data = Source{[Schema="mediapulse_db", Item="vw_dim_channel", Kind="View"]}[Data],
+				    Typed = Table.TransformColumnTypes(Data, {{"channel_id", Int64.Type}, {"channel_title", type text}, {"ingested_at", type datetime}})
+				in
+				    Typed

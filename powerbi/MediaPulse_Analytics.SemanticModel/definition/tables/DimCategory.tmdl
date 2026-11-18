@@ -1,0 +1,28 @@
+table DimCategory
+	lineageTag: c175f346-1d98-4c5c-985f-242ff9291ac9
+
+	column category_id
+		dataType: int64
+		isKey
+		lineageTag: dc1fd2c6-88cd-4d28-82f3-a7c497655bd3
+		sourceColumn: category_id
+
+	column category_title
+		dataType: string
+		lineageTag: 844a1163-96e2-46b9-a8b8-0c3ea3c4fbe7
+		sourceColumn: category_title
+
+	column ingested_at
+		dataType: dateTime
+		lineageTag: e998b73d-f34f-4ac0-8e38-7cb7bf50eaf6
+		sourceColumn: ingested_at
+
+	partition DimCategory-Partition = m
+		mode: import
+		source =
+				let
+				    Source = MySQL.Database("127.0.0.1:3306", "mediapulse_db", [ReturnSingleDatabase=true]),
+				    Data = Source{[Schema="mediapulse_db", Item="vw_dim_category", Kind="View"]}[Data],
+				    Typed = Table.TransformColumnTypes(Data, {{"category_id", Int64.Type}, {"category_title", type text}, {"ingested_at", type datetime}})
+				in
+				    Typed

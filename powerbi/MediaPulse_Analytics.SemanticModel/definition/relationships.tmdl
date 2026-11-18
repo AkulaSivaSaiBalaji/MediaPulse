@@ -1,0 +1,20 @@
+relationship DimCategory_DimVideo_category_id
+	fromColumn: DimVideo.category_id
+	toColumn: DimCategory.category_id
+
+relationship DimChannel_DimVideo_channel_id
+	fromColumn: DimVideo.channel_id
+	toColumn: DimChannel.channel_id
+
+relationship DimVideo_FactTrendingSnapshot_video_id
+	fromColumn: FactTrendingSnapshot.video_id
+	toColumn: DimVideo.video_id
+
+relationship DimDate_FactTrendingSnapshot_trending_date
+	fromColumn: FactTrendingSnapshot.trending_date
+	toColumn: DimDate.full_date
+
+relationship DimDate_DimVideo_publish_date
+	isActive: false
+	fromColumn: DimVideo.publish_date
+	toColumn: DimDate.full_date
