@@ -139,15 +139,19 @@ MediaPulse/
 ## 6. Project Roadmap
 
 - [x] **Phase 1:** Environment and Project Initialization
-- [ ] **Phase 2:** YouTube Dataset Inspection and Profiling
-- [ ] **Phase 3:** Validated Data Cleaning Pipeline and Tests
-- [ ] **Phase 4:** Exploratory Data Analysis (Matplotlib & Seaborn)
-- [ ] **Phase 5:** MySQL Relational Schema & Idempotent Ingestion
-- [ ] **Phase 6:** Advanced SQL Business Analytics & KPI Validation
-- [ ] **Phase 7:** Power BI Dashboard & DAX Measures
+- [x] **Phase 2:** YouTube Dataset Inspection and Profiling
+- [x] **Phase 3:** Validated Data Cleaning Pipeline and Tests
+- [x] **Phase 4:** Exploratory Data Analysis (Matplotlib & Seaborn)
+- [x] **Phase 5:** MySQL Relational Schema & Idempotent Ingestion
+- [x] **Phase 6:** Advanced SQL Business Analytics & KPI Validation
+- [x] **Phase 7:** Power BI Dashboard, Semantic Modeling & DAX Measures
 - [ ] **Phase 8:** End-to-End Testing & Pipeline Validation
 - [ ] **Phase 9:** Executive Business Insights & Recommendations Report
 - [ ] **Phase 10:** GitHub Portfolio Documentation & Interview Preparation Guide
+
+> [!NOTE]
+> **Power BI Validation Status Notice:**  
+> Power BI project files (`powerbi/MediaPulse_Analytics.pbip`), semantic model schemas (`model.bim`), 27 production DAX measures (`powerbi/dax/measures.dax`), and Power Query M queries have been validated programmatically and reconciled against MySQL 8.0 and pytest (83/83 passing tests). However, **Power BI Desktop GUI visual rendering, interactive slicer cross-filtering, and actual DAX engine execution in the desktop application have not yet been verified** due to headless CI/CD execution constraints, and are documented for manual verification upon opening in Power BI Desktop.
 
 ---
 

@@ -378,10 +378,10 @@ Before finalizing Phase 7 on branch `develop`, a rigorous analytical quality aud
 
 ### 2. Power BI Desktop Environment & GUI Verification Status
 - **Environment Assessment:** The operating environment is a headless non-interactive terminal sandbox. Launching the Windows Store UWP app (`PBIDesktopStore.exe`) non-interactively fails with OS execution alias restrictions (`The file cannot be accessed by the system`).
-- **Explicit Analytical Constraint:** We explicitly report that visual canvas rendering and manual UI slicer interactions were **not** verified inside Power BI Desktop GUI in this headless session. We do not make false claims of GUI execution.
+- **Explicit Analytical Constraint:** We explicitly state that **Power BI Desktop GUI rendering, interactive slicer behavior, and actual native DAX engine execution have not yet been verified in the live desktop application**. We do not make false claims of GUI or desktop engine execution.
 - **Alternative Rigorous Verification Performed:**
   1. Structural validation of `.pbip` schema, `definition.pbir`, `definition.pbism`, `model.bim` (TOM compatibility level 1550), and `report.json`.
-  2. DAX syntax parsing and programmatic verification of all 18 measures.
+  2. DAX syntax parsing and programmatic verification of all **27 production DAX measures** across 5 display folders. *(Note: An earlier draft shorthand referencing '18 measures' represented the core non-temporal KPI subset prior to the full integration of the 4 Category & Channel market share/rank measures, 4 Time-Based intelligence measures, and the multi-day persistence measure; the final authoritative model contains exactly 27 production DAX measures).*
   3. Automated end-to-end testing in `tests/test_powerbi_metrics.py` (12 tests passed) reconciling all DAX calculations directly against MySQL views and Pandas aggregates.
 
 ### 3. DAX Filter Context Audit Across All 8 Scenarios
