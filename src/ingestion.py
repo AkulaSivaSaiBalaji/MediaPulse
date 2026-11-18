@@ -218,6 +218,9 @@ def ingest_trending_snapshots(df: pd.DataFrame, engine: Engine, batch_size: int 
             "likes": int(row["likes"]),
             "dislikes": int(row["dislikes"]),
             "comment_count": int(row["comment_count"]),
+            "comments_disabled": bool(row.get("comments_disabled", False)),
+            "ratings_disabled": bool(row.get("ratings_disabled", False)),
+            "video_error_or_removed": bool(row.get("video_error_or_removed", False)),
             "days_to_trend": int(row["days_to_trend"]),
             "engagement_rate": float(round(row["engagement_rate"], 4)),
             "total_interaction_rate": float(round(row["total_interaction_rate"], 4)),
@@ -229,12 +232,14 @@ def ingest_trending_snapshots(df: pd.DataFrame, engine: Engine, batch_size: int 
     insert_sql = text("""
         INSERT INTO trending_snapshots (
             video_id, trending_date, views, likes, dislikes,
-            comment_count, days_to_trend, engagement_rate,
+            comment_count, comments_disabled, ratings_disabled,
+            video_error_or_removed, days_to_trend, engagement_rate,
             total_interaction_rate, like_ratio, tags, description
         )
         VALUES (
             :video_id, :trending_date, :views, :likes, :dislikes,
-            :comment_count, :days_to_trend, :engagement_rate,
+            :comment_count, :comments_disabled, :ratings_disabled,
+            :video_error_or_removed, :days_to_trend, :engagement_rate,
             :total_interaction_rate, :like_ratio, :tags, :description
         )
         ON DUPLICATE KEY UPDATE
@@ -242,6 +247,9 @@ def ingest_trending_snapshots(df: pd.DataFrame, engine: Engine, batch_size: int 
             likes = VALUES(likes),
             dislikes = VALUES(dislikes),
             comment_count = VALUES(comment_count),
+            comments_disabled = VALUES(comments_disabled),
+            ratings_disabled = VALUES(ratings_disabled),
+            video_error_or_removed = VALUES(video_error_or_removed),
             engagement_rate = VALUES(engagement_rate),
             total_interaction_rate = VALUES(total_interaction_rate),
             like_ratio = VALUES(like_ratio)

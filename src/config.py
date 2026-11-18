@@ -5,6 +5,7 @@ Centralizes paths, environment variables, database settings, and project constan
 
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 from dotenv import load_dotenv
 
 # Base Directory paths
@@ -40,6 +41,12 @@ RAW_JSON_FILENAME: str = os.getenv("RAW_JSON_FILENAME", "IN_category_id.json")
 
 RAW_CSV_PATH: Path = DATA_RAW_DIR / RAW_CSV_FILENAME
 RAW_JSON_PATH: Path = DATA_RAW_DIR / RAW_JSON_FILENAME
+PROCESSED_CSV_PATH: Path = DATA_PROCESSED_DIR / "cleaned_youtube_india.csv"
+
+
+def get_processed_csv_path() -> Path:
+    """Resolve active cleaned/processed CSV dataset path."""
+    return PROCESSED_CSV_PATH
 
 
 def get_raw_csv_path() -> Path:
@@ -61,14 +68,16 @@ def get_raw_json_path() -> Path:
 
 
 
-def get_db_connection_url(mask_password: bool = False) -> str:
+def get_db_connection_url(mask_password: bool = False, include_db: bool = True) -> str:
     """Generate SQLAlchemy connection URL for MySQL.
 
     Args:
         mask_password: If True, replaces password with asterisks for safe logging.
+        include_db: If True, includes database name in the connection URI.
 
     Returns:
         Formatted MySQL connection URI.
     """
-    password = "********" if mask_password else DB_PASSWORD
-    return f"mysql+pymysql://{DB_USER}:{password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    password = "********" if mask_password else quote_plus(DB_PASSWORD)
+    db_part = f"/{DB_NAME}" if include_db else ""
+    return f"mysql+pymysql://{DB_USER}:{password}@{DB_HOST}:{DB_PORT}{db_part}"

@@ -31,15 +31,15 @@ CREATE TABLE categories (
 -- 2. Channels Table (Dimension)
 -- Captures publishing media channels.
 -- Note: Historical Kaggle YouTube datasets provide channel titles without the
--- 24-character YouTube Channel ID; surrogate auto-increment key is utilized.
+-- 24-character YouTube Channel ID - surrogate auto-increment key is utilized.
 -- ==============================================================================
 CREATE TABLE channels (
     channel_id INT AUTO_INCREMENT NOT NULL,
-    channel_title VARCHAR(255) NOT NULL,
+    channel_title VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (channel_id),
     UNIQUE KEY uq_channel_title (channel_title)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- ==============================================================================
 -- 3. Videos Table (Dimension / Asset Level)
@@ -47,7 +47,7 @@ CREATE TABLE channels (
 -- Preserves the standard 11-character YouTube video identifier.
 -- ==============================================================================
 CREATE TABLE videos (
-    video_id VARCHAR(20) NOT NULL,
+    video_id VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
     channel_id INT NOT NULL,
     category_id INT NOT NULL,
     title TEXT NOT NULL,
@@ -81,12 +81,15 @@ CREATE TABLE videos (
 -- ==============================================================================
 CREATE TABLE trending_snapshots (
     snapshot_id INT AUTO_INCREMENT NOT NULL,
-    video_id VARCHAR(20) NOT NULL,
+    video_id VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
     trending_date DATE NOT NULL,
     views BIGINT NOT NULL,
     likes BIGINT NOT NULL,
     dislikes BIGINT NOT NULL,
     comment_count BIGINT NOT NULL,
+    comments_disabled BOOLEAN NOT NULL DEFAULT FALSE,
+    ratings_disabled BOOLEAN NOT NULL DEFAULT FALSE,
+    video_error_or_removed BOOLEAN NOT NULL DEFAULT FALSE,
     days_to_trend INT NOT NULL,
     engagement_rate DECIMAL(8, 4) NOT NULL,
     total_interaction_rate DECIMAL(8, 4) NOT NULL,

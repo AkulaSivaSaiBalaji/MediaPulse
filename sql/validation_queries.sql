@@ -83,19 +83,23 @@ ORDER BY unique_videos DESC;
 -- ------------------------------------------------------------------------------
 -- 5. Top 10 Channels by Unique Trending Videos
 -- ------------------------------------------------------------------------------
+WITH video_summary AS (
+    SELECT
+        v.video_id,
+        v.channel_id,
+        MAX(s.views) AS peak_views,
+        COUNT(DISTINCT s.trending_date) AS days_trended
+    FROM videos v
+    JOIN trending_snapshots s ON v.video_id = s.video_id
+    GROUP BY v.video_id, v.channel_id
+)
 SELECT
     ch.channel_title,
-    COUNT(DISTINCT v.video_id) AS unique_videos,
-    MAX(s.views) AS max_single_video_views,
-    ROUND(AVG(sub.days_trended), 2) AS mean_days_trended
+    COUNT(vs.video_id) AS unique_videos,
+    MAX(vs.peak_views) AS max_single_video_views,
+    ROUND(AVG(vs.days_trended), 2) AS mean_days_trended
 FROM channels ch
-JOIN videos v ON ch.channel_id = v.channel_id
-JOIN trending_snapshots s ON v.video_id = s.video_id
-JOIN (
-    SELECT video_id, COUNT(DISTINCT trending_date) AS days_trended
-    FROM trending_snapshots
-    GROUP BY video_id
-) sub ON v.video_id = sub.video_id
+JOIN video_summary vs ON ch.channel_id = vs.channel_id
 GROUP BY ch.channel_id, ch.channel_title
 ORDER BY unique_videos DESC
 LIMIT 10;

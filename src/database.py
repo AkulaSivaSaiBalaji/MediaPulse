@@ -128,6 +128,20 @@ def get_db_session(engine: Optional[Engine] = None) -> Generator[Session, None, 
         session.close()
 
 
+def create_database_if_not_exists(db_name: Optional[str] = None) -> None:
+    """Create target database on server if it does not already exist."""
+    name = db_name or config.DB_NAME
+    server_url = config.get_db_connection_url(include_db=False)
+    # Only applicable for MySQL / PostgreSQL engines
+    if server_url.startswith("sqlite"):
+        return
+    server_engine = create_engine(server_url)
+    with server_engine.connect() as conn:
+        conn.execute(text(f"CREATE DATABASE IF NOT EXISTS `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"))
+        conn.commit()
+    logger.info("Database '%s' verified/created on server", name)
+
+
 def execute_sql_file(file_path: Path, engine: Optional[Engine] = None) -> None:
     """Execute raw SQL statements from a file (e.g., schema.sql) in order.
 
@@ -141,17 +155,17 @@ def execute_sql_file(file_path: Path, engine: Optional[Engine] = None) -> None:
     eng = engine or get_engine()
     sql_text = file_path.read_text(encoding="utf-8")
 
+    # Remove single-line comments prior to splitting by semicolon
+    lines = [line for line in sql_text.splitlines() if not line.strip().startswith("--")]
+    clean_sql = "\n".join(lines)
+
     # Split statements by semicolon, ignoring empty blocks
-    statements = [stmt.strip() for stmt in sql_text.split(";") if stmt.strip()]
+    statements = [stmt.strip() for stmt in clean_sql.split(";") if stmt.strip()]
 
     with eng.connect() as conn:
         with conn.begin():
             for stmt in statements:
-                # Skip comments or USE/CREATE DATABASE if running in SQLite or handled by caller
-                clean_stmt = "\n".join(
-                    line for line in stmt.splitlines() if not line.strip().startswith("--")
-                ).strip()
-                if clean_stmt:
-                    conn.execute(text(clean_stmt))
+                if stmt:
+                    conn.execute(text(stmt))
 
     logger.info("Executed %d SQL statements from %s", len(statements), file_path.name)
