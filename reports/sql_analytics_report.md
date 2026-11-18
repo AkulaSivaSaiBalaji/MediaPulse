@@ -186,7 +186,7 @@ Each finding pairs an executive business question with verified SQL results and 
 
 ### Finding 10: Audience Interaction Policy & Comment Status (Observed Associations)
 - **Business Question:** What differences exist in observed view counts and engagement metrics between videos with comments enabled versus disabled?
-- **SQL Technique:** CTE grouping by video-level `v.comments_disabled` boolean flag at publication across all 16,305 unique videos, calculating mean peak views, likes, comments, and engagement rates with safe division.
+- **SQL Technique:** CTE grouping by video-level `v.comments_disabled` boolean flag at earliest observed snapshot across all 16,305 unique videos, calculating mean peak views, likes, comments, and engagement rates with safe division.
 - **Actual Result (Q19):**
   - **Comments Enabled:** 15,732 videos (**96.49%** of catalog)
     - Mean Peak Views: **693,609 views**

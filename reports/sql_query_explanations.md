@@ -319,7 +319,7 @@ To optimize:
 This reflects the dimensional modeling principle of separating **canonical asset metadata** from **point-in-time observational facts**:
 - 24 videos in the dataset had comments disabled by creators *after* trending.
 - If `comments_disabled` were stored only on `videos`, updating it would overwrite historical reality: on Day 1 when comments were open, engagement was measurable, but on Day 3 comments were turned off.
-- Storing the flag in `trending_snapshots` preserves historical accuracy for time-series audits, while storing it in `videos` records the status at initial publication.
+- Storing the flag in `trending_snapshots` preserves historical accuracy for time-series audits, while storing it in `videos` records the canonical status at earliest observed snapshot.
 
 ---
 

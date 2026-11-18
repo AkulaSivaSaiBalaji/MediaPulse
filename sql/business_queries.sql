@@ -148,7 +148,7 @@ ORDER BY MIN(genres_published) ASC;
 -- ------------------------------------------------------------------------------
 -- Query 19: Audience Interaction Policy & Comment Status (Observed Associations)
 -- Concept: CTE, Boolean Flags, Aggregate Comparison, Safe NULL Division
--- Analytical Note: Evaluates video-level status (v.comments_disabled at publication).
+-- Analytical Note: Evaluates video-level status (v.comments_disabled at earliest observed snapshot).
 --                  Differences reflect observational associations, not algorithmic causation;
 --                  confounding factors include genre policies, topic sensitivity, and reverse
 --                  causation (creators disabling comments in response to negative reception).
