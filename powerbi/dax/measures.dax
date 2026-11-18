@@ -1,0 +1,289 @@
+// ==============================================================================
+// MediaPulse — Media Performance & Audience Analytics
+// DAX Measures Library for Power BI Production Semantic Model
+// Authoritative Source: mediapulse_db MySQL Database
+// Target Table: '_Measures' (Dedicated disconnected measure table)
+// ==============================================================================
+
+// ------------------------------------------------------------------------------
+// FOLDER: 01 Core KPIs
+// ------------------------------------------------------------------------------
+
+Total Unique Videos = 
+DISTINCTCOUNT(DimVideo[video_id])
+/* FormatString: #,##0 */
+/* Description: Authoritative count of unique creative assets observed trending (Baseline: 16,305). */
+
+Total Trending Snapshots = 
+COUNTROWS(FactTrendingSnapshot)
+/* FormatString: #,##0 */
+/* Description: Total daily trending observation snapshots across the temporal window (Baseline: 32,265). */
+
+Total Channels = 
+DISTINCTCOUNT(DimChannel[channel_id])
+/* FormatString: #,##0 */
+/* Description: Total unique YouTube publishers with at least one trending video (Baseline: 1,423). */
+
+Total Categories = 
+DISTINCTCOUNT(DimCategory[category_id])
+/* FormatString: #,##0 */
+/* Description: Total distinct YouTube content categories represented (Baseline: 17). */
+
+Observed Trending Dates = 
+CALCULATE(
+    DISTINCTCOUNT(FactTrendingSnapshot[trending_date]),
+    FactTrendingSnapshot[trending_date] <> BLANK()
+)
+/* FormatString: #,##0 */
+/* Description: Count of distinct calendar dates with collected trending snapshots (Baseline: 205). */
+
+
+// ------------------------------------------------------------------------------
+// FOLDER: 02 Video Performance KPIs (Grain-Aware Calculations)
+// ------------------------------------------------------------------------------
+
+Sum of Per-Video Peak Views = 
+IF(
+    ISFILTERED(DimDate[full_date]),
+    // In date-filtered context, calculate highest view achieved within selected date window
+    SUMX(
+        DimVideo,
+        CALCULATE(MAX(FactTrendingSnapshot[views]))
+    ),
+    // In all-time context, leverage pre-calculated dimension peak views for optimal performance
+    SUM(DimVideo[peak_views])
+)
+/* FormatString: #,##0 */
+/* Description: Sum of maximum view counts per video asset. Prevents snapshot accumulation duplication (Baseline: 11,147,625,965). */
+
+Average Per-Video Peak Views = 
+DIVIDE(
+    [Sum of Per-Video Peak Views],
+    [Total Unique Videos],
+    0
+)
+/* FormatString: #,##0.00 */
+/* Description: Arithmetic mean peak view reach per unique creative asset (Baseline: 683,693.71). */
+
+Median Per-Video Peak Views = 
+IF(
+    ISFILTERED(DimDate[full_date]),
+    MEDIANX(
+        DimVideo,
+        CALCULATE(MAX(FactTrendingSnapshot[views]))
+    ),
+    MEDIAN(DimVideo[peak_views])
+)
+/* FormatString: #,##0 */
+/* Description: True 50th percentile peak reach, robust against extreme viral blockbuster skew (Baseline: 205,619.00). */
+
+Video Peak Likes = 
+IF(
+    ISFILTERED(DimDate[full_date]),
+    SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[likes]))),
+    SUM(DimVideo[peak_likes])
+)
+/* FormatString: #,##0 */
+/* Description: Cumulative sum of per-video maximum observed likes. */
+
+Video Peak Comments = 
+IF(
+    ISFILTERED(DimDate[full_date]),
+    SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[comment_count]))),
+    SUM(DimVideo[peak_comments])
+)
+/* FormatString: #,##0 */
+/* Description: Cumulative sum of per-video maximum observed comment counts. */
+
+Catalog-Level Engagement Rate = 
+DIVIDE(
+    [Video Peak Likes] + [Video Peak Comments],
+    [Sum of Per-Video Peak Views],
+    0
+) * 100
+/* FormatString: 0.0000"%" */
+/* Description: Macro portfolio engagement: total peak interactions divided by total peak views times 100. */
+
+Average Video-Level Engagement Rate = 
+AVERAGEX(
+    FILTER(DimVideo, DimVideo[peak_views] > 0),
+    DimVideo[lifetime_engagement_rate]
+)
+/* FormatString: 0.0000"%" */
+/* Description: Arithmetic mean of individual creative asset engagement rates (Baseline: 2.0579%). */
+
+Median Video-Level Engagement Rate = 
+MEDIANX(
+    FILTER(DimVideo, DimVideo[peak_views] > 0),
+    DimVideo[lifetime_engagement_rate]
+)
+/* FormatString: 0.0000"%" */
+/* Description: True median engagement intensity across unique videos, robust against low-denominator outliers (Baseline: 0.8284%). */
+
+
+// ------------------------------------------------------------------------------
+// FOLDER: 03 Trending Behavior KPIs
+// ------------------------------------------------------------------------------
+
+Average Days to First Observed Trending = 
+AVERAGEX(
+    DimVideo,
+    DimVideo[days_to_first_trend]
+)
+/* FormatString: 0.00 */
+/* Description: Mean elapsed calendar days between video publication and earliest observed trending appearance (Baseline: 1.31 days). */
+
+Median Days to First Observed Trending = 
+MEDIANX(
+    DimVideo,
+    DimVideo[days_to_first_trend]
+)
+/* FormatString: 0.0 */
+/* Description: Median elapsed calendar days to earliest observed trending appearance (Baseline: 1.0 day). */
+
+Same-Day Trending Videos = 
+CALCULATE(
+    [Total Unique Videos],
+    DimVideo[is_same_day_trending] = 1
+)
+/* FormatString: #,##0 */
+/* Description: Unique videos appearing on the trending list on their calendar publication date (Day 0) (Baseline: 420 videos). */
+
+Videos First Observed Trending Within 2 Days = 
+CALCULATE(
+    [Total Unique Videos],
+    DimVideo[is_trending_within_2days] = 1
+)
+/* FormatString: #,##0 */
+/* Description: Unique videos appearing on trending within 48 hours of upload (Day 0, 1, or 2) (Baseline: 15,720 videos). */
+
+Percentage First Observed Trending Within 2 Days = 
+DIVIDE(
+    [Videos First Observed Trending Within 2 Days],
+    [Total Unique Videos],
+    0
+) * 100
+/* FormatString: 0.00"%" */
+/* Description: Share of unique videos appearing on trending within 2 calendar days of upload (Baseline: 96.41%). */
+
+Average Distinct Trending Dates per Video = 
+AVERAGEX(
+    DimVideo,
+    DimVideo[distinct_trending_days]
+)
+/* FormatString: 0.00 */
+/* Description: Average number of distinct snapshot dates videos were observed on the trending list (Baseline: 1.98 days). */
+
+
+// ------------------------------------------------------------------------------
+// FOLDER: 04 Category & Channel KPIs
+// ------------------------------------------------------------------------------
+
+Category Share of Unique Videos = 
+DIVIDE(
+    [Total Unique Videos],
+    CALCULATE([Total Unique Videos], ALLSELECTED(DimCategory)),
+    0
+) * 100
+/* FormatString: 0.00"%" */
+/* Description: Percentage contribution of unique videos from the active category within current slicer scope. */
+
+Channel Share of Unique Videos = 
+DIVIDE(
+    [Total Unique Videos],
+    CALCULATE([Total Unique Videos], ALLSELECTED(DimChannel)),
+    0
+) * 100
+/* FormatString: 0.00"%" */
+/* Description: Percentage contribution of unique videos from the active channel within current slicer scope. */
+
+Category Rank by Unique Videos = 
+IF(
+    ISINSCOPE(DimCategory[category_title]),
+    RANKX(
+        ALLSELECTED(DimCategory),
+        [Total Unique Videos],
+        ,
+        DESC,
+        Dense
+    )
+)
+/* FormatString: 0 */
+/* Description: Dense rank of categories based on catalog unique video count. */
+
+Channel Rank by Unique Videos = 
+IF(
+    ISINSCOPE(DimChannel[channel_title]),
+    RANKX(
+        ALLSELECTED(DimChannel),
+        [Total Unique Videos],
+        ,
+        DESC,
+        Dense
+    )
+)
+/* FormatString: 0 */
+/* Description: Dense rank of publisher channels based on catalog unique video count. */
+
+
+// ------------------------------------------------------------------------------
+// FOLDER: 05 Time-Based Analytics
+// ------------------------------------------------------------------------------
+
+Daily Trending Snapshot Count = 
+COUNTROWS(FactTrendingSnapshot)
+/* FormatString: #,##0 */
+/* Description: Total daily trending snapshots recorded for the selected date or period. */
+
+Month-over-Month Snapshot Count Change = 
+VAR CurrentMonthSnapshots = [Daily Trending Snapshot Count]
+VAR PreviousMonthSnapshots = 
+    CALCULATE(
+        [Daily Trending Snapshot Count],
+        DATEADD(DimDate[full_date], -1, MONTH)
+    )
+RETURN
+    IF(
+        NOT ISBLANK(CurrentMonthSnapshots) && NOT ISBLANK(PreviousMonthSnapshots),
+        CurrentMonthSnapshots - PreviousMonthSnapshots,
+        BLANK()
+    )
+/* FormatString: +#,##0;-#,##0;0 */
+/* Description: Absolute change in snapshot observations compared to the prior calendar month. */
+
+Month-over-Month Snapshot Count Change Percentage = 
+VAR CurrentMonthSnapshots = [Daily Trending Snapshot Count]
+VAR PreviousMonthSnapshots = 
+    CALCULATE(
+        [Daily Trending Snapshot Count],
+        DATEADD(DimDate[full_date], -1, MONTH)
+    )
+RETURN
+    DIVIDE(
+        CurrentMonthSnapshots - PreviousMonthSnapshots,
+        PreviousMonthSnapshots,
+        0
+    ) * 100
+/* FormatString: +0.00"%";-0.00"%";0.00"%" */
+/* Description: Percentage change in snapshot observations compared to the prior calendar month. */
+
+Rolling 7-Observed-Date Snapshot Average = 
+VAR CurrentDate = MAX(DimDate[full_date])
+VAR Last7ObservedDates = 
+    TOPN(
+        7,
+        FILTER(
+            ALL(DimDate),
+            DimDate[full_date] <= CurrentDate && 
+            DimDate[is_trending_snapshot_date] = 1
+        ),
+        DimDate[full_date],
+        DESC
+    )
+RETURN
+    IF(
+        MAX(DimDate[is_trending_snapshot_date]) = 1,
+        AVERAGEX(Last7ObservedDates, CALCULATE([Daily Trending Snapshot Count]))
+    )
+/* FormatString: #,##0.0 */
+/* Description: 7-observed-date moving average of snapshot volume. Strictly bridges missing collection dates. */
