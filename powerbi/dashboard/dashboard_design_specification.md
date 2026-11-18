@@ -110,7 +110,7 @@ Analyze creative asset engagement efficiency, algorithmic induction velocity, au
    - Visual Type: Clustered Column & Line Chart.
    - Shared Axis: `DimDate[weekday_name]` (Sorted chronologically by `iso_weekday_num`).
    - Column: `[Total Unique Videos]` (Upload volume).
-   - Line: `[Median Per-Video Peak Views]` (Audience reach).
+   - Line: `[Median Per-Video Peak Views]` (Peak cumulative views).
 6. **Visual 6: Publication Hour Distribution (UTC vs. IST):**
    - Visual Type: Column Chart.
    - Axis: `DimVideo[publish_hour]`.
@@ -122,7 +122,7 @@ Analyze creative asset engagement efficiency, algorithmic induction velocity, au
 ## 4. Page 3: Channel Performance & Portfolio Diversification
 
 ### Objective
-Enable talent scouts, creator partnership teams, and media planners to benchmark publishing channels, analyze portfolio depth, and evaluate audience retention.
+Enable talent scouts, creator partnership teams, and media planners to benchmark publishing channels, analyze portfolio depth, and evaluate observed trending persistence across snapshot dates.
 
 ### KPI Cards
 - `[Total Channels]`: **1,423 channels**.

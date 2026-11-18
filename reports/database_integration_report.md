@@ -162,9 +162,12 @@ Query 4 of `sql/validation_queries.sql` rolls up snapshots to video-level peak v
 | **Travel & Events** | 4 | 4 | 0.02% | 771,631 | 771,631 | 2.00 |
 | **Movies** | 2 | 2 | 0.01% | 7,724,380 | 7,724,380 | 5.00 |
 | **Pets & Animals** | 1 | 1 | 0.01% | 2,490,776 | 2,490,776 | 2.00 |
-| **Total** | **16,305** | **16,305** | **100.00%** | **10,747,605,964** | **10,747,605,964** | **1.98** |
+| **Total** | **16,305** | **16,305** | **100.00%** | **11,147,625,965** | **11,147,625,965** | **1.98** |
 
 *Result:* **100.00% exact numerical match across all 17 categories.**
+
+> [!NOTE]
+> **Analytical Audit Note (Phase 7 Reconciliation):** The Phase 5 integration report originally recorded a Total peak view figure of 10,747,605,964 due to a manual markdown transcription error (discrepancy of exactly 400,020,001). Summing the 17 verified category rows above (4,349,915,552 + ... + 2,490,776) yields exactly **11,147,625,965**, which matches the authoritative database aggregate (`SELECT SUM(peak_views) FROM vw_dim_video`), the Phase 6 analytics benchmarks, and Phase 7 DAX measures without modification to underlying data.
 
 ---
 

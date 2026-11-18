@@ -11,7 +11,7 @@
 ### Q01: In MediaPulse, why did you choose a Star Schema over a normalized Snowflake Schema or a single flat denormalized table?
 **Answer:**  
 In enterprise Power BI solutions, a **Star Schema** provides the optimal balance between performance, clarity, and metric accuracy:
-1. **Vs. A Flat Denormalized Table (Single Wide Table):** A flat table storing all 32,265 snapshots with denormalized channel and video attributes would duplicate video-level metadata (such as titles, publication timestamps, and tags) across every snapshot row. More critically, calculating unique video reach would require complex, slow `DISTINCTCOUNT` and `CALCULATE` operations on every visual, and naive aggregations like `SUM(views)` would catastrophically overcount audience reach.
+1. **Vs. A Flat Denormalized Table (Single Wide Table):** A flat table storing all 32,265 snapshots with denormalized channel and video attributes would duplicate video-level metadata (such as titles, publication timestamps, and tags) across every snapshot row. More critically, calculating unique video metrics would require complex, slow `DISTINCTCOUNT` and `CALCULATE` operations on every visual, and naive aggregations like `SUM(views)` would catastrophically overcount cumulative peak views.
 2. **Vs. A Normalized Snowflake Schema:** A pure snowflake schema would split `channels` into network hierarchies or separate `categories` into sub-genres, creating multiple relational hops. In Power BI’s in-memory VertiPaq engine, multi-hop snowflaking degrades cross-filtering performance and introduces relationship ambiguity.
 3. **The Star Schema Solution:** MediaPulse implements 4 Dimensions (`DimCategory`, `DimChannel`, `DimVideo`, `DimDate`) radiating around 1 Fact Table (`FactTrendingSnapshot`). Single-direction 1-to-many relationships ensure deterministic filter propagation, sub-second visual rendering, and intuitive self-service reporting.
 
@@ -21,19 +21,19 @@ In enterprise Power BI solutions, a **Star Schema** provides the optimal balance
 **Answer:**  
 The most critical grain challenge was the **discrepancy between the Creative Asset Grain (Video Level) and the Observational Fact Grain (Daily Snapshot Level)**:
 - In the cleaned catalog, there are **16,305 unique videos**, but **32,265 daily trending snapshots** because persistent titles remain on the trending list across multiple days.
-- **The Catastrophic View Double-Counting Issue:** Snapshot views are cumulative point-in-time metrics. If a developer authors a naive measure like `SUM(FactTrendingSnapshot[views])`, Power BI accumulates cumulative daily views across consecutive days, yielding **30,827,205,597 views**—an artificial inflation of **+176.54%** over true audience reach (**11,147,625,965 views**).
+- **The Catastrophic View Double-Counting Issue:** Snapshot views are cumulative point-in-time metrics. If a developer authors a naive measure like `SUM(FactTrendingSnapshot[views])`, Power BI accumulates cumulative daily views across consecutive days, yielding **30,827,205,597 views**—an artificial inflation of **+176.54%** over true per-video peak cumulative views (**11,147,625,965 views**).
 - **The Architectural Solution:** We implemented a two-tier approach:
-  1. *Reporting View Pre-Aggregation:* `vw_dim_video` pre-computes each video’s canonical lifetime peak reach (`MAX(views)`), peak interactions, and lifetime engagement rate.
+  1. *Reporting View Pre-Aggregation:* `vw_dim_video` pre-computes each video’s canonical lifetime peak views (`MAX(views)`), peak interactions, and lifetime engagement rate.
   2. *Grain-Aware Dynamic DAX:*
      ```dax
      Sum of Per-Video Peak Views = 
      IF(
-         ISFILTERED(DimDate[full_date]),
-         SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[views]))),
+         ISCROSSFILTERED(DimDate),
+         SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views]))),
          SUM(DimVideo[peak_views])
      )
      ```
-     This allows fast single-column scalar aggregation in all-time contexts while dynamically evaluating windowed peak views when date slicers are applied.
+     This allows fast single-column scalar aggregation in all-time contexts while dynamically iterating strictly over videos observed in the active window (`VALUES(FactTrendingSnapshot[video_id])`) when date slicers (at date, month, or year levels via `ISCROSSFILTERED`) are applied. Videos with no snapshots in that window evaluate to `BLANK()` and do not bleed historical peak views into the window.
 
 ---
 

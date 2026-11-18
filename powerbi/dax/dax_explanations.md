@@ -19,12 +19,17 @@ The MediaPulse DAX library resolves each of these challenges systematically.
 
 #### `Total Unique Videos`
 ```dax
-Total Unique Videos = DISTINCTCOUNT(DimVideo[video_id])
+Total Unique Videos = 
+IF(
+    ISCROSSFILTERED(DimDate),
+    DISTINCTCOUNT(FactTrendingSnapshot[video_id]),
+    DISTINCTCOUNT(DimVideo[video_id])
+)
 ```
-- **Filter Context:** Evaluates against `DimVideo[video_id]`.
+- **Filter Context:** Evaluates against `DimVideo[video_id]` in all-time contexts, and dynamically against `FactTrendingSnapshot[video_id]` when date slicers (`DimDate`) are active.
 - **Grain:** Unique creative asset level.
-- **Baseline Value:** **16,305 unique videos**.
-- **Behavior:** Respects slicers on `DimCategory`, `DimChannel`, or publication attributes. When cross-filtered by `DimDate`, it returns the count of unique videos published or observed depending on relationship activation.
+- **Baseline Value:** **16,305 unique videos** (all-time); dynamically evaluates active observed videos under date filters (e.g. 197 on Day 1; 2,928 in December 2017).
+- **Behavior:** Respects slicers on `DimCategory`, `DimChannel`, and temporal periods.
 
 #### `Total Trending Snapshots`
 ```dax
@@ -70,18 +75,24 @@ CALCULATE(
 ```dax
 Sum of Per-Video Peak Views = 
 IF(
-    ISFILTERED(DimDate[full_date]),
+    ISCROSSFILTERED(DimDate),
     SUMX(
-        DimVideo,
+        VALUES(FactTrendingSnapshot[video_id]),
         CALCULATE(MAX(FactTrendingSnapshot[views]))
     ),
     SUM(DimVideo[peak_views])
 )
 ```
-- **Analytical Significance:** Resolves the fundamental grain discrepancy.
+- **Precise Metric Terminology:** **Sum of Per-Video Peak Cumulative Views**.
+- **Auditing Note on Naming:** This metric represents the sum of highest recorded view totals across videos. It must **never** be described as "unique audience reach" or "unduplicated impressions," as individual users frequently watch multiple trending videos and view counts reflect repeated cumulative views.
+- **Filter Context & Slicer Audit (`ISCROSSFILTERED` vs `ISFILTERED`):**
+  - Standard `ISFILTERED(DimDate[full_date])` only returns `TRUE` if the specific date column is sliced. If a user selects a month (`DimDate[year_month_label]`), year (`DimDate[calendar_year]`), or quarter, `ISFILTERED(full_date)` fails and returns `FALSE`.
+  - MediaPulse uses `ISCROSSFILTERED(DimDate)`, guaranteeing that date filters at **any level of the calendar hierarchy** properly trigger the date-filtered aggregation path.
+- **Population Integrity (`VALUES(FactTrendingSnapshot[video_id])`):**
+  - Iterating over `VALUES(FactTrendingSnapshot[video_id])` ensures that only videos with **active observations in the selected period** are included.
+  - Videos without observations in the selected date window return `BLANK()` and are completely excluded, ensuring they do **not** contribute historical all-time peaks or distort windowed metrics.
 - **Performance Optimization:** 
-  - In an all-time or category/channel filter context, it executes a fast scalar `SUM(DimVideo[peak_views])` against the pre-aggregated column in `vw_dim_video`.
-  - In a date-filtered context (when the user selects a specific week or month of trending), `ISFILTERED(DimDate[full_date])` dynamically switches to `SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[views])))`, calculating the maximum views achieved by each video *within that selected observation window*.
+  - In all-time contexts, it executes an instant scalar `SUM(DimVideo[peak_views])` against the pre-aggregated column in `vw_dim_video`.
 - **Baseline Value:** **11,147,625,965 views**.
 
 #### `Average Per-Video Peak Views`
@@ -93,16 +104,17 @@ DIVIDE(
     0
 )
 ```
-- **Baseline Value:** **683,693.71 views**.
+- **Baseline Value:** **683,693.71 views** (all-time).
+- **Date-Filtered Integrity:** When sliced by date, divides the windowed peak sum by the exact count of unique videos observed in that window (e.g. Day 1: $156,120,907 / 197 = 792,491.91$ views).
 - **Filter Safety:** Uses `DIVIDE(..., 0)` to guarantee zero division returns zero instead of `NaN` or `Infinity`.
 
 #### `Median Per-Video Peak Views`
 ```dax
 Median Per-Video Peak Views = 
 IF(
-    ISFILTERED(DimDate[full_date]),
+    ISCROSSFILTERED(DimDate),
     MEDIANX(
-        DimVideo,
+        VALUES(FactTrendingSnapshot[video_id]),
         CALCULATE(MAX(FactTrendingSnapshot[views]))
     ),
     MEDIAN(DimVideo[peak_views])
@@ -122,20 +134,52 @@ DIVIDE(
 ```
 - **Definition:** Total interactions across all videos divided by total views.
 - **Format:** `0.0000%`.
-- **Analytical Purpose:** Macro portfolio reach efficiency.
+- **Analytical Purpose:** Macro portfolio engagement intensity.
 
 #### `Average Video-Level Engagement Rate` & `Median Video-Level Engagement Rate`
 ```dax
 Average Video-Level Engagement Rate = 
-AVERAGEX(
-    FILTER(DimVideo, DimVideo[peak_views] > 0),
-    DimVideo[lifetime_engagement_rate]
+IF(
+    ISCROSSFILTERED(DimDate),
+    AVERAGEX(
+        FILTER(
+            VALUES(FactTrendingSnapshot[video_id]),
+            CALCULATE(MAX(FactTrendingSnapshot[views])) > 0
+        ),
+        CALCULATE(
+            DIVIDE(
+                MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]),
+                MAX(FactTrendingSnapshot[views]),
+                0
+            ) * 100
+        )
+    ),
+    AVERAGEX(
+        FILTER(DimVideo, DimVideo[peak_views] > 0),
+        DimVideo[lifetime_engagement_rate]
+    )
 )
 
 Median Video-Level Engagement Rate = 
-MEDIANX(
-    FILTER(DimVideo, DimVideo[peak_views] > 0),
-    DimVideo[lifetime_engagement_rate]
+IF(
+    ISCROSSFILTERED(DimDate),
+    MEDIANX(
+        FILTER(
+            VALUES(FactTrendingSnapshot[video_id]),
+            CALCULATE(MAX(FactTrendingSnapshot[views])) > 0
+        ),
+        CALCULATE(
+            DIVIDE(
+                MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]),
+                MAX(FactTrendingSnapshot[views]),
+                0
+            ) * 100
+        )
+    ),
+    MEDIANX(
+        FILTER(DimVideo, DimVideo[peak_views] > 0),
+        DimVideo[lifetime_engagement_rate]
+    )
 )
 ```
 - **Baseline Values:** 

@@ -253,3 +253,112 @@ def test_rolling_7_observed_dates_logic(db_engine):
         total_snapshots_7_days = sum(r[1] for r in rows)
         expected_avg = total_snapshots_7_days / 7.0
         assert expected_avg > 100.0  # Proper healthy average, not deflated by zero-padding
+
+
+def test_date_filtered_peak_views_scenarios(db_engine):
+    """Verify DAX filter context scenarios for per-video peak views and video counts.
+
+    Tests that iterating over VALUES(FactTrendingSnapshot[video_id]) properly isolates
+    observed videos and prevents unobserved videos from contributing historical peaks.
+    """
+    with db_engine.connect() as conn:
+        # Scenario 1: All-time baseline (no date filter)
+        s1 = conn.execute(
+            text("SELECT COUNT(*), SUM(peak_views) FROM vw_dim_video")
+        ).fetchone()
+        assert s1[0] == 16305
+        assert s1[1] == 11147625965
+
+        # Scenario 2: Single date (2017-11-14)
+        s2 = conn.execute(text("""
+            SELECT COUNT(DISTINCT video_id), SUM(views)
+            FROM vw_fact_trending_snapshots
+            WHERE trending_date = '2017-11-14'
+        """)).fetchone()
+        assert s2[0] == 197
+        assert s2[1] == 156120907
+
+        # Scenario 3: Date range (2017-11-14 to 2017-11-20)
+        s3 = conn.execute(text("""
+            WITH win AS (
+                SELECT video_id, MAX(views) AS win_peak
+                FROM vw_fact_trending_snapshots
+                WHERE trending_date BETWEEN '2017-11-14' AND '2017-11-20'
+                GROUP BY video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s3[0] == 771
+        assert s3[1] == 420290494
+
+        # Scenario 4: Month filter (2017-12)
+        s4 = conn.execute(text("""
+            WITH win AS (
+                SELECT video_id, MAX(views) AS win_peak
+                FROM vw_fact_trending_snapshots
+                WHERE trending_date >= '2017-12-01' AND trending_date <= '2017-12-31'
+                GROUP BY video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s4[0] == 2928
+        assert s4[1] == 1837672615
+
+        # Scenario 5: Year filter (2018)
+        s5 = conn.execute(text("""
+            WITH win AS (
+                SELECT video_id, MAX(views) AS win_peak
+                FROM vw_fact_trending_snapshots
+                WHERE trending_date >= '2018-01-01' AND trending_date <= '2018-12-31'
+                GROUP BY video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s5[0] == 11982
+        assert s5[1] == 8669880904
+
+        # Scenario 6: Category + Month filter (Entertainment + 2017-12)
+        s6 = conn.execute(text("""
+            WITH win AS (
+                SELECT s.video_id, MAX(s.views) AS win_peak
+                FROM vw_fact_trending_snapshots s
+                JOIN vw_dim_video v ON s.video_id = v.video_id
+                JOIN vw_dim_category c ON v.category_id = c.category_id
+                WHERE c.category_title = 'Entertainment'
+                  AND s.trending_date >= '2017-12-01' AND s.trending_date <= '2017-12-31'
+                GROUP BY s.video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s6[0] == 1307
+        assert s6[1] == 850028080
+
+        # Scenario 7: Channel + Month filter (Study IQ education + 2017-12)
+        s7 = conn.execute(text("""
+            WITH win AS (
+                SELECT s.video_id, MAX(s.views) AS win_peak
+                FROM vw_fact_trending_snapshots s
+                JOIN vw_dim_video v ON s.video_id = v.video_id
+                JOIN vw_dim_channel ch ON v.channel_id = ch.channel_id
+                WHERE ch.channel_title = 'Study IQ education'
+                  AND s.trending_date >= '2017-12-01' AND s.trending_date <= '2017-12-31'
+                GROUP BY s.video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s7[0] == 27
+        assert s7[1] == 1314605
+
+        # Scenario 8: Outage date (2018-04-10) — Scraper downtime, zero snapshots
+        s8 = conn.execute(text("""
+            WITH win AS (
+                SELECT video_id, MAX(views) AS win_peak
+                FROM vw_fact_trending_snapshots
+                WHERE trending_date = '2018-04-10'
+                GROUP BY video_id
+            )
+            SELECT COUNT(*), SUM(win_peak) FROM win
+        """)).fetchone()
+        assert s8[0] == 0
+        assert s8[1] is None  # Matches DAX BLANK() behavior
+

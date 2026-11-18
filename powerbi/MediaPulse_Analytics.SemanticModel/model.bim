@@ -40,10 +40,10 @@
         "measures": [
           {
             "name": "Total Unique Videos",
-            "expression": "DISTINCTCOUNT(DimVideo[video_id])",
+            "expression": "IF(ISCROSSFILTERED(DimDate), DISTINCTCOUNT(FactTrendingSnapshot[video_id]), DISTINCTCOUNT(DimVideo[video_id]))",
             "formatString": "#,##0",
             "displayFolder": "01 Core KPIs",
-            "description": "Authoritative count of unique creative assets observed trending (Baseline: 16,305)."
+            "description": "Authoritative count of unique creative assets observed trending (Baseline: 16,305 all-time; dynamically evaluates observed video count under date filters)."
           },
           {
             "name": "Total Trending Snapshots",
@@ -75,35 +75,35 @@
           },
           {
             "name": "Sum of Per-Video Peak Views",
-            "expression": "IF(\n    ISFILTERED(DimDate[full_date]),\n    SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[views]))),\n    SUM(DimVideo[peak_views])\n)",
+            "expression": "IF(\n    ISCROSSFILTERED(DimDate),\n    SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views]))),\n    SUM(DimVideo[peak_views])\n)",
             "formatString": "#,##0",
             "displayFolder": "02 Video Performance KPIs",
-            "description": "Sum of maximum view counts per video asset. Prevents snapshot accumulation duplication (Baseline: 11,147,625,965)."
+            "description": "Sum of Per-Video Peak Cumulative Views. Evaluates maximum views per creative asset, preventing snapshot accumulation duplication (Baseline: 11,147,625,965). Does not represent unduplicated human audience reach."
           },
           {
             "name": "Average Per-Video Peak Views",
             "expression": "DIVIDE([Sum of Per-Video Peak Views], [Total Unique Videos], 0)",
             "formatString": "#,##0.00",
             "displayFolder": "02 Video Performance KPIs",
-            "description": "Arithmetic mean peak view reach per unique creative asset (Baseline: 683,693.71)."
+            "description": "Arithmetic mean per-video peak cumulative views per unique creative asset (Baseline: 683,693.71)."
           },
           {
             "name": "Median Per-Video Peak Views",
-            "expression": "IF(\n    ISFILTERED(DimDate[full_date]),\n    MEDIANX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[views]))),\n    MEDIAN(DimVideo[peak_views])\n)",
+            "expression": "IF(\n    ISCROSSFILTERED(DimDate),\n    MEDIANX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views]))),\n    MEDIAN(DimVideo[peak_views])\n)",
             "formatString": "#,##0",
             "displayFolder": "02 Video Performance KPIs",
-            "description": "True 50th percentile peak reach, robust against extreme viral blockbuster skew (Baseline: 205,619.00)."
+            "description": "True 50th percentile peak cumulative views, robust against extreme viral blockbuster skew (Baseline: 205,619.00)."
           },
           {
             "name": "Video Peak Likes",
-            "expression": "IF(ISFILTERED(DimDate[full_date]), SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[likes]))), SUM(DimVideo[peak_likes]))",
+            "expression": "IF(ISCROSSFILTERED(DimDate), SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[likes]))), SUM(DimVideo[peak_likes]))",
             "formatString": "#,##0",
             "displayFolder": "02 Video Performance KPIs",
             "description": "Cumulative sum of per-video maximum observed likes."
           },
           {
             "name": "Video Peak Comments",
-            "expression": "IF(ISFILTERED(DimDate[full_date]), SUMX(DimVideo, CALCULATE(MAX(FactTrendingSnapshot[comment_count]))), SUM(DimVideo[peak_comments]))",
+            "expression": "IF(ISCROSSFILTERED(DimDate), SUMX(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[comment_count]))), SUM(DimVideo[peak_comments]))",
             "formatString": "#,##0",
             "displayFolder": "02 Video Performance KPIs",
             "description": "Cumulative sum of per-video maximum observed comments."
@@ -113,18 +113,18 @@
             "expression": "DIVIDE([Video Peak Likes] + [Video Peak Comments], [Sum of Per-Video Peak Views], 0) * 100",
             "formatString": "0.0000\"%\"",
             "displayFolder": "02 Video Performance KPIs",
-            "description": "Macro portfolio engagement: total peak interactions divided by total peak views times 100."
+            "description": "Macro portfolio engagement: total peak interactions divided by total peak cumulative views times 100."
           },
           {
             "name": "Average Video-Level Engagement Rate",
-            "expression": "AVERAGEX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])",
+            "expression": "IF(\n    ISCROSSFILTERED(DimDate),\n    AVERAGEX(\n        FILTER(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views])) > 0),\n        CALCULATE(DIVIDE(MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]), MAX(FactTrendingSnapshot[views]), 0) * 100)\n    ),\n    AVERAGEX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])\n)",
             "formatString": "0.0000\"%\"",
             "displayFolder": "02 Video Performance KPIs",
             "description": "Arithmetic mean of individual creative asset engagement rates (Baseline: 2.0579%)."
           },
           {
             "name": "Median Video-Level Engagement Rate",
-            "expression": "MEDIANX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])",
+            "expression": "IF(\n    ISCROSSFILTERED(DimDate),\n    MEDIANX(\n        FILTER(VALUES(FactTrendingSnapshot[video_id]), CALCULATE(MAX(FactTrendingSnapshot[views])) > 0),\n        CALCULATE(DIVIDE(MAX(FactTrendingSnapshot[likes]) + MAX(FactTrendingSnapshot[comment_count]), MAX(FactTrendingSnapshot[views]), 0) * 100)\n    ),\n    MEDIANX(FILTER(DimVideo, DimVideo[peak_views] > 0), DimVideo[lifetime_engagement_rate])\n)",
             "formatString": "0.0000\"%\"",
             "displayFolder": "02 Video Performance KPIs",
             "description": "True median engagement intensity across unique videos, robust against low-denominator outliers (Baseline: 0.8284%)."
@@ -169,7 +169,7 @@
             "expression": "AVERAGEX(DimVideo, DimVideo[distinct_trending_days])",
             "formatString": "0.00",
             "displayFolder": "03 Trending Behavior KPIs",
-            "description": "Average number of distinct snapshot dates videos were observed on the trending list (Baseline: 1.98 days)."
+            "description": "Average number of distinct snapshot dates videos were observed on the trending list (Baseline: 1.98 days). Represents observed trending persistence across snapshots, not continuous uninterrupted feed retention."
           },
           {
             "name": "Category Share of Unique Videos",
